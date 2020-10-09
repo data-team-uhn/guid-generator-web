@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="GUID generator from patient identifiable information"
+    />
+    <title>GUID generator</title>
+    <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
+	<script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
+	<script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">
+	
+	<script type="text/javascript" src="https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt.js"></script>
+    
+    <!-- Don't use this in production: -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+	<script src="http://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+
+require.config({
+	paths: {
+	   "bcrypt": "https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt"
+	}
+});
+
+require(["bcrypt"], function(bcrypt) {
+
+    const { useState } = window['React'];
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles } = window['MaterialUI'];
+	const { CopyToClipboard } = window['CopyToClipboard'];
+	
+	const useStyles = makeStyles((theme) => ({
+	    root: {
+			'& .MuiTextField-root': {
+			  margin: theme.spacing(2),
+			  width: '25ch',
+			},
+		  },
+		binput: {
+			width: theme.spacing(62),
+			height: theme.spacing(10),
+			paddingTop: theme.spacing(4),
+			marginTop: theme.spacing(2),
+			marginBottom: theme.spacing(2),
+		},
+		bbutton: {
+			margin: theme.spacing(2),
+		},
+		labelRoot: {
+			width: theme.spacing(69),
+			"&$labelFocused": {
+			  color: "purple"
+			}
+		  },
+		labelFocused: {},
+		main: {margin : theme.spacing(6),},
+    }));
+
+    function GUIDGeneratorComponent() {
+        const classes = useStyles();
+        const [ binput, setBinput ] = useState();
+        const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id'));
+        const [ bhash, setBhash ] = useState();
+        const [ isValid, setIsValid ] = useState(false);
+        const [ errorText, setErrorText ] = useState();
+        const [ copied, setCopied ] = useState(false);
+
+
+        let onSubmit  = () => {
+            setIsValid(false);
+            setErrorText(null);
+        
+            bcrypt.hash(binput, 10, (err, hash) => {
+                if (err) {
+                    console.error(err);
+                    setErrorText(err);
+                    return;
+                }
+                console.log(hash)
+                setBhash(hash);
+            })
+        }
+        
+        let handleChange  = (value) => {
+            setIsValid(false);
+            setErrorText(null);
+            setBhash(null);
+            setCopied(false)
+            setBinput(value);
+            
+            // sanitise and validate
+            setIsValid(true);
+        }
+        
+ 
+        return (
+            <div className={classes.main}>
+            <Typography variant="h3">GUID generator</Typography>
+                <TextField
+                  multiline
+                  id="binput"
+                  value={binput}
+                  className={classes.binput}
+                  fullWidth
+                  onChange={(event) => {handleChange(event.target.value)}}
+                  helperText={!errorText ? "Example: '2345678904,ON,2020-02-02'." : errorText}
+                  error={errorText}
+                  label="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line."
+                  placeholder="2345678904,ON,2002-01-23"
+                  InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Icon>folder_shared</Icon> 
+                        </InputAdornment>
+                      ),
+                   }}
+                  InputLabelProps={{
+                      classes: {
+                        root: classes.labelRoot,
+                        focused: classes.labelFocused
+                      }
+                  }}
+                />
+                <br/>
+                <TextField
+                  id="projectid"
+                  label="Project Id"
+                  value={projectId}
+                  onChange={(event) => {setProjectId(event.target.value)}}
+                  InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Icon>label</Icon>
+                        </InputAdornment>
+                      ),
+                   }}
+                />
+                <br/>
+                <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!isValid} className={classes.bbutton}>Generate GUIDs</Button>
+                <br/>
+                {bhash && <div>
+                          <TextField
+                              id="bhash-input"
+                              label="Generated bcrypted GUID"
+                              value={bhash}
+                              InputProps={{
+                                readOnly: true,
+                              }}
+                              variant="outlined"
+                            />
+                            <CopyToClipboard text={bhash}
+                              onCopy={() => setCopied(true)}>
+                                  <IconButton title="Copy GGUIDs to clipboard" >
+                                      <Icon>file_copy</Icon>
+                                  </IconButton>
+                            </CopyToClipboard>
+                            
+                            {copied ? <span style={{color: 'red'}}>Copied.</span> : null}
+                        </div>
+                }
+            
+            </div>
+        );
+    }
+      
+      ReactDOM.render(
+        <GUIDGeneratorComponent/>,
+            document.querySelector('#root')
+        );
+
+
+});
+
+    </script>
+  </body>
+</html>
