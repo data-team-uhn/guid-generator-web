@@ -9,174 +9,264 @@
       content="GUID generator from patient identifiable information"
     />
     <title>GUID generator</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">
     <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
-	<script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
-	<script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
-	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">
-	
-	<script type="text/javascript" src="https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt.js"></script>
-    
-    <!-- Don't use this in production: -->
+    <script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-	<script src="http://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
+    <script src="http://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
   </head>
   <body>
     <div id="root"></div>
     <script type="text/babel">
 
 require.config({
-	paths: {
-	   "bcrypt": "https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt"
-	}
+    paths: {
+       "bcrypt": "https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt"
+    }
 });
 
 require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
-    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles } = window['MaterialUI'];
-	const { CopyToClipboard } = window['CopyToClipboard'];
-	
-	const useStyles = makeStyles((theme) => ({
-	    root: {
-			'& .MuiTextField-root': {
-			  margin: theme.spacing(2),
-			  width: '25ch',
-			},
-		  },
-		binput: {
-			width: theme.spacing(62),
-			height: theme.spacing(10),
-			paddingTop: theme.spacing(4),
-			marginTop: theme.spacing(2),
-			marginBottom: theme.spacing(2),
-		},
-		bbutton: {
-			margin: theme.spacing(2),
-		},
-		labelRoot: {
-			width: theme.spacing(69),
-			"&$labelFocused": {
-			  color: "purple"
-			}
-		  },
-		labelFocused: {},
-		main: {margin : theme.spacing(6),},
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid } = window['MaterialUI'];
+
+    const useStyles = makeStyles((theme) => ({
+        btextinput: {
+            width: theme.spacing(50),
+            paddingTop: theme.spacing(2),
+            marginTop: theme.spacing(3),
+            marginBottom: theme.spacing(2),
+        },
+        projectidinput: {
+            width: theme.spacing(50),
+        },
+        boutput: {
+            width: theme.spacing(70),
+            marginBottom: theme.spacing(2),
+        },
+        bbutton: {
+            margin: theme.spacing(2),
+        },
+        labelRoot: {
+            width: theme.spacing(70),
+            "&$labelFocused": {
+              color: "purple"
+            }
+        },
+        labelFocused: {},
+        main: {
+            margin : theme.spacing(6),
+        },
+        helperText: {
+            lineHeight: "normal",
+        },
     }));
+
+    const provinces = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
 
     function GUIDGeneratorComponent() {
         const classes = useStyles();
         const [ binput, setBinput ] = useState();
-        const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id'));
-        const [ bhash, setBhash ] = useState();
+        const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
+        const [ bhashArray, setBhashArray ] = useState([]);
         const [ isValid, setIsValid ] = useState(false);
         const [ errorText, setErrorText ] = useState();
-        const [ copied, setCopied ] = useState(false);
+        const [ postProcessedInfo, setPostProcessedInfo ] = useState([]);
 
+        // MOD 10 Check Digit algorithm
+        let isValidHealthCard = (num) => {
 
-        let onSubmit  = () => {
-            setIsValid(false);
-            setErrorText(null);
-        
-            bcrypt.hash(binput, 10, (err, hash) => {
-                if (err) {
-                    console.error(err);
-                    setErrorText(err);
-                    return;
-                }
-                console.log(hash)
-                setBhash(hash);
-            })
+            let calc, i, check, checksum = 0, r = [2,1];
+
+            // iterate on all the numbers in 'num'
+            for ( let i=num.length-1; i--; ){
+                calc = num.charAt(i) * r[i % r.length];
+                // handle cases where it's a 2 digits number
+                calc = ((calc/10)|0) + (calc % 10);
+                checksum += calc;
+            }
+            check = (10-(checksum % 10)) % 10; // make sure to get '0' if checksum is '10'
+            let checkDigit = num % 10;
+
+            return check == checkDigit;
         }
-        
+
+        // Input validation and sanitising
         let handleChange  = (value) => {
             setIsValid(false);
             setErrorText(null);
-            setBhash(null);
-            setCopied(false)
+            setBhashArray([]);
             setBinput(value);
-            
-            // sanitise and validate
-            setIsValid(true);
+
+            if (!value) return;
+
+            let postProcessed = [];
+            let err = '';
+
+            let lines = value.split('\n');
+            for (var line of lines) {
+                // skip & ignore empty lines
+                if (!line) continue;
+
+                // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
+                let info = line.trim()
+                             .split(',')
+                             .map( (item) => (item.trim()) )
+                             .filter( (item) => (item) );
+
+                if (info.length < 3) {
+                    err = "Line '" + line + "' has " + info.length
+                        + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
+                    break;
+                }
+
+                // Validate DOB
+                let dateReg = /^\d{4}[\-\/\s]?((((0[13578])|(1[02]))[\-\/\s]?(([0-2][0-9])|(3[01])))|(((0[469])|(11))[\-\/\s]?(([0-2][0-9])|(30)))|(02[\-\/\s]?[0-2][0-9]))$/;
+                let matched = info[2].match(dateReg);
+
+                if (!matched || matched[0] != info[2]) {
+                    err = "The date of birth " + info[2] + " appears to be invalid. Please enter a correct date of birth in the format YYYY-MM-DD.";
+                    break;
+                }
+
+                // Replace \ and space with - before encryption
+                info[2] = info[2].replace(/\\/g, '-').replace(/\s+/g, '-');
+
+                // Validate Province code
+                // Should be one of: AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT. Lower case version is accepted.
+                if (!provinces.includes(info[1].toUpperCase())) {
+                    err = "Province code " + info[1] + " is invalid. It should be one of : AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT.";
+                    break;
+                }
+
+                // validate Health card number
+                // For ON:
+                if (info[1].toUpperCase() == "ON") {
+                    // Remove everyhing except digits
+                    info[0] = info[0].replace(/\D+/g, '');
+
+                    if (info[0].length != 10) {
+                        err = "Health card number " + info[0] + " is invalid for the province of ON. A 10 digit number is expected.";
+                        break;
+                    }
+
+                    // validate Ontario Health card with the MOD 10 Check Digit algorithm
+                    if (!isValidHealthCard(info[0])) {
+                        err = "Health card number " + info[0] + " is invalid for the province of ON. Please check the number and try again.";
+                        break;
+                    }
+                } else {
+                    // Remove spaces, dashes, trailing letters and assume the result is valid (for now).
+                    info[0] = info[0].replace(/\D+/g, '');
+                }
+
+                // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
+                postProcessed.push(info[0] + info[2]);
+            }
+
+            setPostProcessedInfo(postProcessed);
+            setErrorText(err);
+            !err && postProcessed.length > 0 && setIsValid(true);
         }
-        
- 
+
+        let onSubmit = () => {
+            setIsValid(false);
+            setErrorText(null);
+
+            let hashes = [];
+
+            postProcessedInfo.forEach( (input, index) => {
+
+                bcrypt.hash(input + projectId, 10, (err, hash) => {
+                    if (err) {
+                        console.error(err);
+                        setErrorText(err);
+                        return;
+                    }
+                    // console.log(hash);
+                    hashes.push(hash);
+                    (index == postProcessedInfo.length - 1) && setBhashArray(hashes);
+                })
+            })
+        }
+
         return (
             <div className={classes.main}>
-            <Typography variant="h3">GUID generator</Typography>
-                <TextField
-                  multiline
-                  id="binput"
-                  value={binput}
-                  className={classes.binput}
-                  fullWidth
-                  onChange={(event) => {handleChange(event.target.value)}}
-                  helperText={!errorText ? "Example: '2345678904,ON,2020-02-02'." : errorText}
-                  error={errorText}
-                  label="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line."
-                  placeholder="2345678904,ON,2002-01-23"
-                  InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Icon>folder_shared</Icon> 
-                        </InputAdornment>
-                      ),
-                   }}
-                  InputLabelProps={{
-                      classes: {
-                        root: classes.labelRoot,
-                        focused: classes.labelFocused
-                      }
-                  }}
-                />
-                <br/>
-                <TextField
-                  id="projectid"
-                  label="Project Id"
-                  value={projectId}
-                  onChange={(event) => {setProjectId(event.target.value)}}
-                  InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Icon>label</Icon>
-                        </InputAdornment>
-                      ),
-                   }}
-                />
-                <br/>
+                <Typography variant="h3">GUID generator</Typography>
+                <Grid container spacing={1}>
+                    <Grid item>
+                        <TextField
+                          multiline
+                          id="binput"
+                          value={binput}
+                          className={classes.btextinput}
+                          onChange={(event) => {handleChange(event.target.value)}}
+                          helperText={!errorText ? "Example: '2345678904,ON,2020-02-02'." : errorText}
+                          error={errorText}
+                          label="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line."
+                          placeholder="2345678904,ON,2002-01-23"
+                          InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <Icon color="primary">folder_shared</Icon> 
+                                </InputAdornment>
+                              ),
+                          }}
+                          InputLabelProps={{
+                              classes: {
+                                root: classes.labelRoot,
+                                focused: classes.labelFocused
+                              }
+                          }}
+                          FormHelperTextProps={{
+                            className: classes.helperText
+                          }}
+                        />
+                    </Grid>
+                    <Grid item>
+                        <TextField
+                          id="projectid"
+                          label="Project Id (* optional)"
+                          value={projectId}
+                          className={classes.projectidinput}
+                          onChange={(event) => {setProjectId(event.target.value)}}
+                          InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <Icon color="primary">label</Icon>
+                                </InputAdornment>
+                              ),
+                           }}
+                        />
+                    </Grid>
+                </Grid>
                 <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!isValid} className={classes.bbutton}>Generate GUIDs</Button>
-                <br/>
-                {bhash && <div>
+                { bhashArray.length > 0 && bhashArray.map( bhash =>
+                        <div>
                           <TextField
                               id="bhash-input"
+                              multiline
                               label="Generated bcrypted GUID"
                               value={bhash}
                               InputProps={{
                                 readOnly: true,
                               }}
-                              variant="outlined"
+                              className={classes.boutput}
                             />
-                            <CopyToClipboard text={bhash}
-                              onCopy={() => setCopied(true)}>
-                                  <IconButton title="Copy GGUIDs to clipboard" >
-                                      <Icon>file_copy</Icon>
-                                  </IconButton>
-                            </CopyToClipboard>
-                            
-                            {copied ? <span style={{color: 'red'}}>Copied.</span> : null}
                         </div>
+                    )
                 }
             
             </div>
         );
     }
-      
-      ReactDOM.render(
+
+    ReactDOM.render(
         <GUIDGeneratorComponent/>,
             document.querySelector('#root')
-        );
-
+    );
 
 });
 
