@@ -204,9 +204,9 @@ require(["bcrypt"], function(bcrypt) {
                           value={binput}
                           className={classes.btextinput}
                           onChange={(event) => {handleChange(event.target.value)}}
-                          helperText={!errorText ? "Example: '2345678904,ON,2020-02-02'." : errorText}
+                          helperText={!errorText ? "Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'." : errorText}
                           error={errorText}
-                          label="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line."
+                          label="Health card number,Province code,Date of birth"
                           placeholder="2345678904,ON,2002-01-23"
                           InputProps={{
                               startAdornment: (
