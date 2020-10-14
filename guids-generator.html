@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="http://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
   </head>
@@ -31,6 +32,8 @@ require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
     const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid } = window['MaterialUI'];
+
+    const { CopyToClipboard } = window['CopyToClipboard'];
 
     const useStyles = makeStyles((theme) => ({
         btextinput: {
@@ -73,6 +76,7 @@ require(["bcrypt"], function(bcrypt) {
         const [ bhashArray, setBhashArray ] = useState([]);
         const [ isValid, setIsValid ] = useState(false);
         const [ errorText, setErrorText ] = useState();
+        const [ copied, setCopied ] = useState(false);
         const [ postProcessedInfo, setPostProcessedInfo ] = useState([]);
 
         // MOD 10 Check Digit algorithm
@@ -99,6 +103,7 @@ require(["bcrypt"], function(bcrypt) {
             setErrorText(null);
             setBhashArray([]);
             setBinput(value);
+            setCopied(false);
 
             if (!value) return;
 
@@ -116,7 +121,7 @@ require(["bcrypt"], function(bcrypt) {
                              .map( (item) => (item.trim()) )
                              .filter( (item) => (item) );
 
-                if (info.length < 3) {
+                if (info.length != 3) {
                     err = "Line '" + line + "' has " + info.length
                         + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
                     break;
@@ -137,7 +142,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Province code
                 // Should be one of: AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT. Lower case version is accepted.
                 if (!provinces.includes(info[1].toUpperCase())) {
-                    err = "Province code " + info[1] + " is invalid. It should be one of : AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT.";
+                    err = "Province code " + info[1].toUpperCase() + " is invalid. It should be one of :" + provinces.join(", ") +".";
                     break;
                 }
 
@@ -158,8 +163,8 @@ require(["bcrypt"], function(bcrypt) {
                         break;
                     }
                 } else {
-                    // Remove spaces, dashes, trailing letters and assume the result is valid (for now).
-                    info[0] = info[0].replace(/\D+/g, '');
+                    // Remove spaces, dashes and assume the result is valid (for now).
+                    info[0] = info[0].replace(/\s+/g, '').replace(/-/g, '');
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
@@ -179,7 +184,7 @@ require(["bcrypt"], function(bcrypt) {
 
             postProcessedInfo.forEach( (input, index) => {
 
-                bcrypt.hash(input + projectId, 10, (err, hash) => {
+                bcrypt.hash(input + projectId, "$2a$10$biRUcRBR1wroz1r45ORKs.", (err, hash) => {
                     if (err) {
                         console.error(err);
                         setErrorText(err);
@@ -195,7 +200,7 @@ require(["bcrypt"], function(bcrypt) {
         return (
             <div className={classes.main}>
                 <Typography variant="h3">GUID generator</Typography>
-                <Grid container spacing={1}>
+                <Grid container direction="column" wrap="nowrap" spacing={4}>
                     <Grid item>
                         <TextField
                           multiline
@@ -231,7 +236,7 @@ require(["bcrypt"], function(bcrypt) {
                           label="Project Id (* optional)"
                           value={projectId}
                           className={classes.projectidinput}
-                          onChange={(event) => {setProjectId(event.target.value)}}
+                          onChange={(event) => {setProjectId(event.target.value); setCopied(false); setIsValid(true); setBhashArray([]);}}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
@@ -241,22 +246,30 @@ require(["bcrypt"], function(bcrypt) {
                            }}
                         />
                     </Grid>
+                    <Grid item>
+                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!isValid} className={classes.bbutton}>Generate GUIDs</Button>
+                    </Grid>
                 </Grid>
-                <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!isValid} className={classes.bbutton}>Generate GUIDs</Button>
-                { bhashArray.length > 0 && bhashArray.map( bhash =>
+                { bhashArray.length > 0 &&
                         <div>
                           <TextField
                               id="bhash-input"
                               multiline
                               label="Generated bcrypted GUID"
-                              value={bhash}
+                              value={bhashArray.join('\n')}
                               InputProps={{
                                 readOnly: true,
                               }}
                               className={classes.boutput}
                             />
+                            <CopyToClipboard text={bhashArray.join('\n')}
+                              onCopy={() => setCopied(true)}>
+                                  <IconButton title="Copy GGUIDs to clipboard" >
+                                      <Icon>file_copy</Icon>
+                                  </IconButton>
+                            </CopyToClipboard>
+                            {copied ? <span style={{color: 'green'}}>Copied</span> : null}
                         </div>
-                    )
                 }
             
             </div>
