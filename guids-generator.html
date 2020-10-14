@@ -74,7 +74,6 @@ require(["bcrypt"], function(bcrypt) {
         const [ binput, setBinput ] = useState();
         const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
         const [ bhashArray, setBhashArray ] = useState([]);
-        const [ isValid, setIsValid ] = useState(false);
         const [ errorText, setErrorText ] = useState();
         const [ copied, setCopied ] = useState(false);
         const [ postProcessedInfo, setPostProcessedInfo ] = useState([]);
@@ -99,7 +98,6 @@ require(["bcrypt"], function(bcrypt) {
 
         // Input validation and sanitising
         let handleChange  = (value) => {
-            setIsValid(false);
             setErrorText(null);
             setBhashArray([]);
             setBinput(value);
@@ -124,7 +122,7 @@ require(["bcrypt"], function(bcrypt) {
                 if (info.length != 3) {
                     err = "Line '" + line + "' has " + info.length
                         + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
-                    break;
+                    continue;
                 }
 
                 // Validate DOB
@@ -133,7 +131,7 @@ require(["bcrypt"], function(bcrypt) {
 
                 if (!matched || matched[0] != info[2]) {
                     err = "The date of birth " + info[2] + " appears to be invalid. Please enter a correct date of birth in the format YYYY-MM-DD.";
-                    break;
+                    continue;
                 }
 
                 // Replace \ and space with - before encryption
@@ -143,7 +141,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Should be one of: AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT. Lower case version is accepted.
                 if (!provinces.includes(info[1].toUpperCase())) {
                     err = "Province code " + info[1].toUpperCase() + " is invalid. It should be one of :" + provinces.join(", ") +".";
-                    break;
+                    continue;
                 }
 
                 // validate Health card number
@@ -154,13 +152,13 @@ require(["bcrypt"], function(bcrypt) {
 
                     if (info[0].length != 10) {
                         err = "Health card number " + info[0] + " is invalid for the province of ON. A 10 digit number is expected.";
-                        break;
+                        continue;
                     }
 
                     // validate Ontario Health card with the MOD 10 Check Digit algorithm
                     if (!isValidHealthCard(info[0])) {
                         err = "Health card number " + info[0] + " is invalid for the province of ON. Please check the number and try again.";
-                        break;
+                        continue;
                     }
                 } else {
                     // Remove spaces, dashes and assume the result is valid (for now).
@@ -173,11 +171,9 @@ require(["bcrypt"], function(bcrypt) {
 
             setPostProcessedInfo(postProcessed);
             setErrorText(err);
-            !err && postProcessed.length > 0 && setIsValid(true);
         }
 
         let onSubmit = () => {
-            setIsValid(false);
             setErrorText(null);
 
             let hashes = [];
@@ -192,7 +188,7 @@ require(["bcrypt"], function(bcrypt) {
                     }
                     // console.log(hash);
                     hashes.push(hash);
-                    (index == postProcessedInfo.length - 1) && setBhashArray(hashes);
+                    (hashes.length == postProcessedInfo.length) && setBhashArray(hashes);
                 })
             })
         }
@@ -236,7 +232,7 @@ require(["bcrypt"], function(bcrypt) {
                           label="Project Id (* optional)"
                           value={projectId}
                           className={classes.projectidinput}
-                          onChange={(event) => {setProjectId(event.target.value); setCopied(false); setIsValid(true); setBhashArray([]);}}
+                          onChange={(event) => {setProjectId(event.target.value); setCopied(false); setBhashArray([]);}}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
@@ -247,7 +243,7 @@ require(["bcrypt"], function(bcrypt) {
                         />
                     </Grid>
                     <Grid item>
-                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!isValid} className={classes.bbutton}>Generate GUIDs</Button>
+                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={postProcessedInfo.length == 0} className={classes.bbutton}>Generate GUIDs</Button>
                     </Grid>
                 </Grid>
                 { bhashArray.length > 0 &&
