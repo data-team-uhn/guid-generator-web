@@ -36,26 +36,34 @@ require(["bcrypt"], function(bcrypt) {
     const { CopyToClipboard } = window['CopyToClipboard'];
 
     const useStyles = makeStyles((theme) => ({
+        bform: {
+            marginTop: theme.spacing(2),
+            marginBottom: theme.spacing(2),
+        },
         btextinput: {
             width: theme.spacing(50),
-            paddingTop: theme.spacing(2),
-            marginTop: theme.spacing(3),
-            marginBottom: theme.spacing(2),
+            marginBottom: theme.spacing(0),
+            "& .MuiInput-root": {
+              alignItems: "start",
+            },
+        },
+        binputIcon: {
+            marginTop: theme.spacing(1),
         },
         projectidinput: {
             width: theme.spacing(50),
         },
         boutput: {
             width: theme.spacing(70),
-            marginBottom: theme.spacing(2),
+            marginBottom: theme.spacing(0),
         },
         bbutton: {
-            margin: theme.spacing(2),
         },
         labelRoot: {
             width: theme.spacing(70),
+            color: theme.palette.text.primary,
             "&$labelFocused": {
-              color: "purple"
+              color: theme.palette.primary.main
             }
         },
         labelFocused: {},
@@ -196,10 +204,11 @@ require(["bcrypt"], function(bcrypt) {
         return (
             <div className={classes.main}>
                 <Typography variant="h3">GUID generator</Typography>
-                <Grid container direction="column" wrap="nowrap" spacing={4}>
+                <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
                         <TextField
                           multiline
+                          inputProps={{rows: 2}}
                           id="binput"
                           value={binput}
                           className={classes.btextinput}
@@ -207,10 +216,11 @@ require(["bcrypt"], function(bcrypt) {
                           helperText={!errorText ? "Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'." : errorText}
                           error={errorText}
                           label="Health card number,Province code,Date of birth"
-                          placeholder="2345678904,ON,2002-01-23"
+                          placeholder="2345678904,ON,2002-01-23
+23456789,AB,2003-05-31"
                           InputProps={{
                               startAdornment: (
-                                <InputAdornment position="start">
+                                <InputAdornment position="start" className={classes.binputIcon}>
                                   <Icon color="primary">folder_shared</Icon> 
                                 </InputAdornment>
                               ),
@@ -264,7 +274,7 @@ require(["bcrypt"], function(bcrypt) {
                                       <Icon>file_copy</Icon>
                                   </IconButton>
                             </CopyToClipboard>
-                            {copied ? <span style={{color: 'green'}}>Copied</span> : null}
+                            {copied ? <Typography display="inline" style={{color: 'green'}}>Copied</Typography> : null}
                         </div>
                 }
             
