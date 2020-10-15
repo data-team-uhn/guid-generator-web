@@ -63,6 +63,9 @@ require(["bcrypt"], function(bcrypt) {
             width: theme.spacing(70),
             color: theme.palette.text.primary,
         },
+        selectInputLabel: {
+            marginLeft : theme.spacing(4),
+        },
         main: {
             margin : theme.spacing(6),
         },
@@ -100,7 +103,6 @@ require(["bcrypt"], function(bcrypt) {
 
         let onDateFormatChange = (value) => {
             setDateFormat(value);
-            validate();
         }
 
         let validatedateDate = (dateText) => {
@@ -314,6 +316,22 @@ require(["bcrypt"], function(bcrypt) {
                 <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
                         <TextField
+                          id="projectid"
+                          label="Project Id (* optional)"
+                          value={projectId}
+                          className={classes.projectidinput}
+                          onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
+                          InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <Icon color="primary">label</Icon>
+                                </InputAdornment>
+                              ),
+                           }}
+                        />
+                    </Grid>
+                    <Grid item>
+                        <TextField
                           multiline
                           inputProps={{rows: 2}}
                           id="binput"
@@ -344,19 +362,22 @@ require(["bcrypt"], function(bcrypt) {
                     </Grid>
                     <Grid item>
                         <FormControl className={classes.formControl}>
-                            <InputLabel shrink id="date-format">
-                              Date format for the dates of birth
+                            <InputAdornment position="start" className={classes.binputIcon}>
+                              <Icon color="primary">date_range</Icon> 
+                            </InputAdornment>
+                            <InputLabel shrink id="date-format" className={classes.selectInputLabel}>
+                                Date format for the dates of birth
                             </InputLabel>
                             <Select
                               value={dateFormat}
                               onChange={(event) => { onDateFormatChange(event.target.value);}}
-                              className={classes.selectEmpty}
+                              onBlur={(event) => {validate()}}
                             >
                               <MenuItem value="yyyy-MM-dd">yyyy-MM-dd, E.g. 2010-12-23</MenuItem>
                               <MenuItem value="yyyy/MM/dd">yyyy/MM/dd, E.g. 2010/12/23</MenuItem>
                               <MenuItem value="yyyy.MM.dd">yyyy.MM.dd, E.g. 2010.12.23</MenuItem>
                               <MenuItem value="yyyy MM dd">yyyy MM dd, E.g. 2010 12 23</MenuItem>
-                              <MenuItem value="dd-MM-yyyy">yyyy-MM-dd, E.g. 23-12-2010</MenuItem>
+                              <MenuItem value="dd-MM-yyyy">dd-MM-yyyy, E.g. 23-12-2010</MenuItem>
                               <MenuItem value="dd/MM/yyyy">dd/MM/yyyy, E.g. 23/12/2010</MenuItem>
                               <MenuItem value="dd.MM.yyyy">dd.MM.yyyy, E.g. 23.12.2010</MenuItem>
                               <MenuItem value="dd MM yyyy">dd MM yyyy, E.g. 23 12 2010</MenuItem>
@@ -367,22 +388,6 @@ require(["bcrypt"], function(bcrypt) {
                             </Select>
                             <FormHelperText>Please specify the format of the dates of birth by selecting one of the supported formats</FormHelperText>
                         </FormControl>
-                    </Grid>
-                    <Grid item>
-                        <TextField
-                          id="projectid"
-                          label="Project Id (* optional)"
-                          value={projectId}
-                          className={classes.projectidinput}
-                          onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
-                          InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Icon color="primary">label</Icon>
-                                </InputAdornment>
-                              ),
-                           }}
-                        />
                     </Grid>
                     <Grid item>
                         <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={binput?.trim().length == 0} className={classes.bbutton}>Generate GUIDs</Button>
