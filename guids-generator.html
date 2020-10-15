@@ -64,7 +64,13 @@ require(["bcrypt"], function(bcrypt) {
             color: theme.palette.text.primary,
         },
         selectInputLabel: {
-            marginLeft : theme.spacing(4),
+        },
+        selectInputIcon : {
+            marginTop: theme.spacing(4),
+            marginBottom: theme.spacing(-2),
+        },
+        selectInput: {
+            paddingLeft: theme.spacing(4),
         },
         main: {
             margin : theme.spacing(6),
@@ -374,13 +380,14 @@ require(["bcrypt"], function(bcrypt) {
                     </Grid>
                     <Grid item>
                         <FormControl className={classes.formControl}>
-                            <InputAdornment position="start" className={classes.binputIcon}>
-                              <Icon color="primary">date_range</Icon> 
-                            </InputAdornment>
                             <InputLabel shrink id="date-format" className={classes.selectInputLabel}>
                                 Date format for the dates of birth
                             </InputLabel>
+                           <InputAdornment position="start" className={classes.selectInputIcon}>
+                              <Icon color="primary">date_range</Icon>
+                            </InputAdornment>
                             <Select
+                              className={classes.selectInput}
                               value={dateFormat}
                               onChange={(event) => { onDateFormatChange(event.target.value);}}
                               onBlur={(event) => {validate()}}
