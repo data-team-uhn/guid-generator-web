@@ -93,6 +93,18 @@ require(["bcrypt"], function(bcrypt) {
         "MM dd yyyy" : {"separator" : " ", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2}
     }
 
+    let sampleDate = {y: 2010, m: 12, d:23};
+    let menuEntries = {};
+
+    for (let f in dateFormatSpecs) {
+      let sampleDateFormatted = [0,0,0];
+      let specs = dateFormatSpecs[f];
+      sampleDateFormatted[specs.dayIndex] = sampleDate.d;
+      sampleDateFormatted[specs.montIndex] = sampleDate.m;
+      sampleDateFormatted[specs.yearIndex] = sampleDate.y;
+      menuEntries[f] = f + " (" + sampleDateFormatted.join(specs.separator) + ")";
+    }
+
     function GUIDGeneratorComponent() {
         const classes = useStyles();
         const [ binput, setBinput ] = useState();
@@ -140,7 +152,7 @@ require(["bcrypt"], function(bcrypt) {
 
               // assuming no leap year by default
               var daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-              if (year % 4 == 0) {
+              if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
                   // current year is a leap year
                   daysPerMonth[1] = 29;
               }
@@ -373,18 +385,9 @@ require(["bcrypt"], function(bcrypt) {
                               onChange={(event) => { onDateFormatChange(event.target.value);}}
                               onBlur={(event) => {validate()}}
                             >
-                              <MenuItem value="yyyy-MM-dd">yyyy-MM-dd, E.g. 2010-12-23</MenuItem>
-                              <MenuItem value="yyyy/MM/dd">yyyy/MM/dd, E.g. 2010/12/23</MenuItem>
-                              <MenuItem value="yyyy.MM.dd">yyyy.MM.dd, E.g. 2010.12.23</MenuItem>
-                              <MenuItem value="yyyy MM dd">yyyy MM dd, E.g. 2010 12 23</MenuItem>
-                              <MenuItem value="dd-MM-yyyy">dd-MM-yyyy, E.g. 23-12-2010</MenuItem>
-                              <MenuItem value="dd/MM/yyyy">dd/MM/yyyy, E.g. 23/12/2010</MenuItem>
-                              <MenuItem value="dd.MM.yyyy">dd.MM.yyyy, E.g. 23.12.2010</MenuItem>
-                              <MenuItem value="dd MM yyyy">dd MM yyyy, E.g. 23 12 2010</MenuItem>
-                              <MenuItem value="MM-dd-yyyy">MM-dd-yyyy, E.g. 12-23-2010</MenuItem>
-                              <MenuItem value="MM/dd/yyyy">MM/dd/yyyy, E.g. 12/23/2010</MenuItem>
-                              <MenuItem value="MM.dd.yyyy">MM.dd.yyyy, E.g. 12.23.2010</MenuItem>
-                              <MenuItem value="MM dd yyyy">MM dd yyyy, E.g. 12 23 2010</MenuItem>
+                                { Object.keys(menuEntries).map( item =>
+                                    <MenuItem value={item}>{menuEntries[item]}</MenuItem>
+                                )}
                             </Select>
                             <FormHelperText>Please specify the format of the dates of birth by selecting one of the supported formats</FormHelperText>
                         </FormControl>
