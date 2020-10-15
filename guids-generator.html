@@ -30,7 +30,7 @@ require.config({
 require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
-    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid, List, ListItem, ListItemText } = window['MaterialUI'];
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid, List, ListItem, ListItemText, FormControl, Select, MenuItem, FormHelperText, InputLabel } = window['MaterialUI'];
 
     const useStyles = makeStyles((theme) => ({
         bform: {
@@ -48,6 +48,9 @@ require(["bcrypt"], function(bcrypt) {
             marginTop: theme.spacing(1),
         },
         projectidinput: {
+            width: theme.spacing(50),
+        },
+        formControl: {
             width: theme.spacing(50),
         },
         boutput: {
@@ -72,6 +75,20 @@ require(["bcrypt"], function(bcrypt) {
     }));
 
     const provinces = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
+    const dateFormatSpecs = {
+        "yyyy-MM-dd" : {"separator" : "-", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
+        "yyyy/MM/dd" : {"separator" : "/", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
+        "yyyy.MM.dd" : {"separator" : ".", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
+        "yyyy MM dd" : {"separator" : " ", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
+        "dd-MM-yyyy" : {"separator" : "-", "dayIndex" : 0, "montIndex" : 1, "yearIndex" : 2},
+        "dd/MM/yyyy" : {"separator" : "/", "dayIndex" : 0, "montIndex" : 1, "yearIndex" : 2},
+        "dd.MM.yyyy" : {"separator" : ".", "dayIndex" : 0, "montIndex" : 1, "yearIndex" : 2},
+        "dd MM yyyy" : {"separator" : " ", "dayIndex" : 0, "montIndex" : 1, "yearIndex" : 2},
+        "MM-dd-yyyy" : {"separator" : "-", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2},
+        "MM/dd/yyyy" : {"separator" : "/", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2},
+        "MM.dd.yyyy" : {"separator" : ".", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2},
+        "MM dd yyyy" : {"separator" : " ", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2}
+    }
 
     function GUIDGeneratorComponent() {
         const classes = useStyles();
@@ -79,6 +96,65 @@ require(["bcrypt"], function(bcrypt) {
         const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
         const [ bhashes, setBhashes ] = useState({});
         const [ validatedData, setValidatedData ] = useState([]);
+        const [ dateFormat, setDateFormat ] = useState("yyyy-MM-dd");
+
+        let onDateFormatChange = (value) => {
+            setDateFormat(value);
+            validate();
+        }
+
+        let validatedateDate = (dateText) => {
+
+          if (!dateText) {
+            return false;
+          }
+
+          try {
+
+              var splitComponents = dateText.split(dateFormatSpecs[dateFormat].separator);
+              if (splitComponents.length != 3) {
+                 // The date as to be in the format dd/mm/yyyy
+                 return false;
+              }
+
+              var day = parseInt(splitComponents[dateFormatSpecs[dateFormat].dayIndex]);
+              var month = parseInt(splitComponents[dateFormatSpecs[dateFormat].montIndex]);
+              var year = parseInt(splitComponents[dateFormatSpecs[dateFormat].yearIndex]);
+
+              if (isNaN(day) || isNaN(month) || isNaN(year)) {
+                  // The day, month and year need to be numbers
+                  return false;
+              }
+
+              if (day <= 0 || month <= 0 || year <= 0) {
+                  //The day, month and year need to be positive values greater than 0
+                  return false;
+              }
+
+              if (month > 12) {
+                  // The month cannot be greater than 12
+                  return false;
+              }
+
+              // assuming no leap year by default
+              var daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+              if (year % 4 == 0) {
+                  // current year is a leap year
+                  daysPerMonth[1] = 29;
+              }
+
+              if (day > daysPerMonth[month - 1]) {
+                  // Number of days are more than those allowed for the month
+                  return false;
+              }
+
+          } catch (err) {
+              console.log(err);
+              return false;
+          }
+
+          return true;
+        }
 
         // MOD 10 Check Digit algorithm
         let isValidHealthCard = (num) => {
@@ -132,11 +208,8 @@ require(["bcrypt"], function(bcrypt) {
 
         // Validate DOB
         let validateDOB = (value) => {
-            let dateReg = /^\d{4}[\-\/\s]?((((0[13578])|(1[02]))[\-\/\s]?(([0-2][0-9])|(3[01])))|(((0[469])|(11))[\-\/\s]?(([0-2][0-9])|(30)))|(02[\-\/\s]?[0-2][0-9]))$/;
-            let matched = value.match(dateReg);
-
-            if (!matched || matched[0] != value) {
-                return {"error" : "The date of birth " + value + " appears to be invalid. Please enter a correct date of birth in the format YYYY-MM-DD."};
+            if (!validatedateDate(value)) {
+                return {"error" : "The date of birth " + value + " appears to be invalid. Please enter a correct date of birth in the format " + dateFormat};
             }
             // Replace '\' and space with '-' before encryption
             return value.replace(/\\/g, '-').replace(/\s+/g, '-');
@@ -152,7 +225,8 @@ require(["bcrypt"], function(bcrypt) {
         }
 
         // Input validation and sanitising
-        let validate  = (value) => {
+        let validate  = () => {
+            let value = binput;
             setBhashes({});
             setValidatedData([]);
 
@@ -246,7 +320,7 @@ require(["bcrypt"], function(bcrypt) {
                           value={binput}
                           className={classes.btextinput}
                           onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
-                          onBlur={(event) => {validate(event.target.value)}}
+                          onBlur={(event) => {validate()}}
                           helperText="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'."
                           label="Health card number,Province code,Date of birth"
                           placeholder="2345678904,ON,2002-01-23
@@ -267,6 +341,32 @@ require(["bcrypt"], function(bcrypt) {
                             className: classes.helperText
                           }}
                         />
+                    </Grid>
+                    <Grid item>
+                        <FormControl className={classes.formControl}>
+                            <InputLabel shrink id="date-format">
+                              Date format for the dates of birth
+                            </InputLabel>
+                            <Select
+                              value={dateFormat}
+                              onChange={(event) => { onDateFormatChange(event.target.value);}}
+                              className={classes.selectEmpty}
+                            >
+                              <MenuItem value="yyyy-MM-dd">yyyy-MM-dd, E.g. 2010-12-23</MenuItem>
+                              <MenuItem value="yyyy/MM/dd">yyyy/MM/dd, E.g. 2010/12/23</MenuItem>
+                              <MenuItem value="yyyy.MM.dd">yyyy.MM.dd, E.g. 2010.12.23</MenuItem>
+                              <MenuItem value="yyyy MM dd">yyyy MM dd, E.g. 2010 12 23</MenuItem>
+                              <MenuItem value="dd-MM-yyyy">yyyy-MM-dd, E.g. 23-12-2010</MenuItem>
+                              <MenuItem value="dd/MM/yyyy">dd/MM/yyyy, E.g. 23/12/2010</MenuItem>
+                              <MenuItem value="dd.MM.yyyy">dd.MM.yyyy, E.g. 23.12.2010</MenuItem>
+                              <MenuItem value="dd MM yyyy">dd MM yyyy, E.g. 23 12 2010</MenuItem>
+                              <MenuItem value="MM-dd-yyyy">MM-dd-yyyy, E.g. 12-23-2010</MenuItem>
+                              <MenuItem value="MM/dd/yyyy">MM/dd/yyyy, E.g. 12/23/2010</MenuItem>
+                              <MenuItem value="MM.dd.yyyy">MM.dd.yyyy, E.g. 12.23.2010</MenuItem>
+                              <MenuItem value="MM dd yyyy">MM dd yyyy, E.g. 12 23 2010</MenuItem>
+                            </Select>
+                            <FormHelperText>Please specify the format of the dates of birth by selecting one of the supported formats</FormHelperText>
+                        </FormControl>
                     </Grid>
                     <Grid item>
                         <TextField
