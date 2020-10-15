@@ -124,7 +124,7 @@ require(["bcrypt"], function(bcrypt) {
         // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
         let checkInfoCount = (info, index) => {
             if (info.length != 3) {
-                return "Line " + index + ", '" + line + "', has " + info.length
+                return "Line " + index + ", '" + info.join(',') + "', has " + info.length
                     + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
             }
             return null;
