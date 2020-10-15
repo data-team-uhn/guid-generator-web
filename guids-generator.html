@@ -14,7 +14,6 @@
     <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
   </head>
@@ -31,9 +30,7 @@ require.config({
 require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
-    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid } = window['MaterialUI'];
-
-    const { CopyToClipboard } = window['CopyToClipboard'];
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid, List, ListItem, ListItemText } = window['MaterialUI'];
 
     const useStyles = makeStyles((theme) => ({
         bform: {
@@ -62,16 +59,15 @@ require(["bcrypt"], function(bcrypt) {
         labelRoot: {
             width: theme.spacing(70),
             color: theme.palette.text.primary,
-            "&$labelFocused": {
-              color: theme.palette.primary.main
-            }
         },
-        labelFocused: {},
         main: {
             margin : theme.spacing(6),
         },
         helperText: {
             lineHeight: "normal",
+        },
+        listItem: {
+            padding: "0",
         },
     }));
 
@@ -81,10 +77,8 @@ require(["bcrypt"], function(bcrypt) {
         const classes = useStyles();
         const [ binput, setBinput ] = useState();
         const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
-        const [ bhashArray, setBhashArray ] = useState([]);
-        const [ errorText, setErrorText ] = useState();
-        const [ copied, setCopied ] = useState(false);
-        const [ postProcessedInfo, setPostProcessedInfo ] = useState([]);
+        const [ bhashes, setBhashes ] = useState({});
+        const [ validatedData, setValidatedData ] = useState([]);
 
         // MOD 10 Check Digit algorithm
         let isValidHealthCard = (num) => {
@@ -104,100 +98,139 @@ require(["bcrypt"], function(bcrypt) {
             return check == checkDigit;
         }
 
+        // Validate Ontario Health Card
+        let validateONHealthCard = (value) => {
+            // Remove everyhing except digits
+            value = value.replace(/\D+/g, '');
+
+            if (value.length != 10) {
+                return {"error" : "Health card number " + value + " is invalid for the province of ON. A 10 digit number is expected."};
+            }
+
+            // validate Ontario Health card with the MOD 10 Check Digit algorithm
+            if (!isValidHealthCard(value)) {
+                return {"error" : "Health card number " + value + " is invalid for the province of ON. Please check the number and try again."};
+            }
+            return value;
+        }
+
+        const healthCardsValidators = { "ON" : validateONHealthCard };
+
+        // Remove spaces, dashes and assume the result is valid (for now).
+        let validateDefaultHealthCard = (value) => {
+            return value.replace(/\s+/g, '').replace(/-/g, '');
+        }
+
+        // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
+        let checkInfoCount = (info, index) => {
+            if (info.length != 3) {
+                return "Line " + index + ", '" + line + "', has " + info.length
+                    + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
+            }
+            return null;
+        }
+
+        // Validate DOB
+        let validateDOB = (value) => {
+            let dateReg = /^\d{4}[\-\/\s]?((((0[13578])|(1[02]))[\-\/\s]?(([0-2][0-9])|(3[01])))|(((0[469])|(11))[\-\/\s]?(([0-2][0-9])|(30)))|(02[\-\/\s]?[0-2][0-9]))$/;
+            let matched = value.match(dateReg);
+
+            if (!matched || matched[0] != value) {
+                return {"error" : "The date of birth " + value + " appears to be invalid. Please enter a correct date of birth in the format YYYY-MM-DD."};
+            }
+            // Replace '\' and space with '-' before encryption
+            return value.replace(/\\/g, '-').replace(/\s+/g, '-');
+        }
+
+        // Validate Province code
+        // Should be one of: AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT. Lower case version is accepted.
+        let validateProvince = (value) => {
+            if (!provinces.includes(value.toUpperCase())) {
+                return {"error" : "Province code " + value.toUpperCase() + " is invalid. It should be one of :" + provinces.join(", ") +"."};
+            }
+            return value.toUpperCase();
+        }
+
         // Input validation and sanitising
-        let handleChange  = (value) => {
-            setErrorText(null);
-            setBhashArray([]);
-            setBinput(value);
-            setCopied(false);
+        let validate  = (value) => {
+            setBhashes({});
+            setValidatedData([]);
 
             if (!value) return;
 
             let postProcessed = [];
-            let err = '';
 
             let lines = value.split('\n');
-            for (var line of lines) {
+            for (var [index, line] of lines.entries()) {
                 // skip & ignore empty lines
                 if (!line) continue;
 
-                // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
                 let info = line.trim()
                              .split(',')
                              .map( (item) => (item.trim()) )
                              .filter( (item) => (item) );
 
-                if (info.length != 3) {
-                    err = "Line '" + line + "' has " + info.length
-                        + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
+                // There should be 3 pieces per each line: Health card #, Province code, Date of birth
+                let countErr = checkInfoCount(info, index);
+                if (countErr) {
+                    postProcessed.push({"line" : line + index, "value" : countErr, "isError": true});
                     continue;
                 }
 
                 // Validate DOB
-                let dateReg = /^\d{4}[\-\/\s]?((((0[13578])|(1[02]))[\-\/\s]?(([0-2][0-9])|(3[01])))|(((0[469])|(11))[\-\/\s]?(([0-2][0-9])|(30)))|(02[\-\/\s]?[0-2][0-9]))$/;
-                let matched = info[2].match(dateReg);
-
-                if (!matched || matched[0] != info[2]) {
-                    err = "The date of birth " + info[2] + " appears to be invalid. Please enter a correct date of birth in the format YYYY-MM-DD.";
+                let date = validateDOB(info[2]);
+                if (date.error) {
+                    postProcessed.push({"line" : line + index, "value": date.error, "isError": true});
                     continue;
+                } else {
+                    info[2] = date;
                 }
-
-                // Replace \ and space with - before encryption
-                info[2] = info[2].replace(/\\/g, '-').replace(/\s+/g, '-');
 
                 // Validate Province code
-                // Should be one of: AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT. Lower case version is accepted.
-                if (!provinces.includes(info[1].toUpperCase())) {
-                    err = "Province code " + info[1].toUpperCase() + " is invalid. It should be one of :" + provinces.join(", ") +".";
+                let province = validateProvince(info[1]);
+                if (province.error) {
+                    postProcessed.push({"line" : line + index, "value": province.error, "isError": true});
                     continue;
+                } else {
+                    info[1] = province;
                 }
 
-                // validate Health card number
-                // For ON:
-                if (info[1].toUpperCase() == "ON") {
-                    // Remove everyhing except digits
-                    info[0] = info[0].replace(/\D+/g, '');
-
-                    if (info[0].length != 10) {
-                        err = "Health card number " + info[0] + " is invalid for the province of ON. A 10 digit number is expected.";
-                        continue;
-                    }
-
-                    // validate Ontario Health card with the MOD 10 Check Digit algorithm
-                    if (!isValidHealthCard(info[0])) {
-                        err = "Health card number " + info[0] + " is invalid for the province of ON. Please check the number and try again.";
-                        continue;
-                    }
+                // Validate Health card number y province
+                let healthCard = healthCardsValidators[info[1]] ? healthCardsValidators[info[1]](info[0]) : validateDefaultHealthCard(info[0]);
+                if (healthCard.error) {
+                    postProcessed.push({"line" : line + index, "value": healthCard.error, "isError": true});
+                    continue;
                 } else {
-                    // Remove spaces, dashes and assume the result is valid (for now).
-                    info[0] = info[0].replace(/\s+/g, '').replace(/-/g, '');
+                    info[0] = healthCard;
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push(info[0] + info[2]);
+                postProcessed.push({"line" : line + index, "value": info[0] + info[2]});
             }
 
-            setPostProcessedInfo(postProcessed);
-            setErrorText(err);
+            setValidatedData(postProcessed);
         }
 
         let onSubmit = () => {
-            setErrorText(null);
 
-            let hashes = [];
+            let hashes = {};
 
-            postProcessedInfo.forEach( (input, index) => {
+            validatedData.forEach( (item, index) => {
+                if (item.isError) {
+                    hashes[item.line] = item;
+                    (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
+                } else {
+                    // Salt is hardcoded here for now
+                    bcrypt.hash(item.value + projectId, "$2a$10$biRUcRBR1wroz1r45ORKs.", (err, hash) => {
+                        if (err) {
+                            console.error(err);
+                            return;
+                        }
 
-                bcrypt.hash(input + projectId, "$2a$10$biRUcRBR1wroz1r45ORKs.", (err, hash) => {
-                    if (err) {
-                        console.error(err);
-                        setErrorText(err);
-                        return;
-                    }
-                    // console.log(hash);
-                    hashes.push(hash);
-                    (hashes.length == postProcessedInfo.length) && setBhashArray(hashes);
-                })
+                        hashes[item.line] = {"value" : hash};
+                        (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
+                    })
+                }
             })
         }
 
@@ -212,9 +245,9 @@ require(["bcrypt"], function(bcrypt) {
                           id="binput"
                           value={binput}
                           className={classes.btextinput}
-                          onChange={(event) => {handleChange(event.target.value)}}
-                          helperText={!errorText ? "Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'." : errorText}
-                          error={errorText}
+                          onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
+                          onBlur={(event) => {validate(event.target.value)}}
+                          helperText="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'."
                           label="Health card number,Province code,Date of birth"
                           placeholder="2345678904,ON,2002-01-23
 23456789,AB,2003-05-31"
@@ -227,8 +260,7 @@ require(["bcrypt"], function(bcrypt) {
                           }}
                           InputLabelProps={{
                               classes: {
-                                root: classes.labelRoot,
-                                focused: classes.labelFocused
+                                root: classes.labelRoot
                               }
                           }}
                           FormHelperTextProps={{
@@ -242,7 +274,7 @@ require(["bcrypt"], function(bcrypt) {
                           label="Project Id (* optional)"
                           value={projectId}
                           className={classes.projectidinput}
-                          onChange={(event) => {setProjectId(event.target.value); setCopied(false); setBhashArray([]);}}
+                          onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
@@ -253,31 +285,18 @@ require(["bcrypt"], function(bcrypt) {
                         />
                     </Grid>
                     <Grid item>
-                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={postProcessedInfo.length == 0} className={classes.bbutton}>Generate GUIDs</Button>
+                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={binput?.trim().length == 0} className={classes.bbutton}>Generate GUIDs</Button>
                     </Grid>
                 </Grid>
-                { bhashArray.length > 0 &&
-                        <div>
-                          <TextField
-                              id="bhash-input"
-                              multiline
-                              label="Generated bcrypted GUID"
-                              value={bhashArray.join('\n')}
-                              InputProps={{
-                                readOnly: true,
-                              }}
-                              className={classes.boutput}
-                            />
-                            <CopyToClipboard text={bhashArray.join('\n')}
-                              onCopy={() => setCopied(true)}>
-                                  <IconButton title="Copy GGUIDs to clipboard" >
-                                      <Icon>file_copy</Icon>
-                                  </IconButton>
-                            </CopyToClipboard>
-                            {copied ? <Typography display="inline" style={{color: 'green'}}>Copied</Typography> : null}
-                        </div>
+                { Object.keys(bhashes).length > 0 &&
+                    <List>
+                        { validatedData.map( item =>
+                            <ListItem className={classes.listItem}>
+                                <ListItemText primary={bhashes[item.line].value} style={{color: bhashes[item.line].isError ? 'red' : 'black'}} />
+                            </ListItem>
+                        )}
+                    </List>
                 }
-            
             </div>
         );
     }
