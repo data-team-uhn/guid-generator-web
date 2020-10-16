@@ -115,6 +115,25 @@ require(["bcrypt"], function(bcrypt) {
 
             return MOD_10_check_digit(value) ? value : {"error" : "Health card number " + value + " is invalid for the province of ON. Please check the number and try again."};
         },
+        QC: function (value, dob) {
+            console.log(dob);
+            // Expected: 4 letters and 8 digits, possibly grouped as XXXX #### #### with a space separator
+            let RAMQ_NB_REGEXP = /^\s*[a-zA-Z]{4}\s?\d{4}\s?\d{4}\s*$/;
+            if (!RAMQ_NB_REGEXP.exec(value)) {
+                return {"error" : "Health card number " + value + " is invalid for the province of QC. A 4 letter word followed by 8 digits number is expected."};
+            }
+            // Extract the meaningful characters as a string
+            value = value.replace(/\W+/g, '').toUpperCase();
+            // Validate digits against DOB
+            // DOB is already processed and in the format yyyy-MM-dd
+            // The first 6 of the 8 digits in the QC HC number are yyMMdd or yySSdd where SS is MM+50 for female sex
+            var dobDigits = +(dob.replace(/-/g, '').substring(2));
+            var hcDobSexDigits = +(value.substring(4, 10));
+            if (dobDigits != hcDobSexDigits && dobDigits + 5000 != hcDobSexDigits) {
+                return {"error" : "Health card number " + value + " is invalid for the province of QC. The digits do not match the provided date of birth."};
+            }
+            return value;
+        },
         CA: function (value) {
             // Generic sanitizer to use when specific province validators are unavailable:
             // Check that it is composed of letters, numbers, and optional space or dash separators that are removed
@@ -366,7 +385,7 @@ require(["bcrypt"], function(bcrypt) {
                           onBlur={(event) => {validate()}}
                           helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
                           label="Health card number,Province code,Date of birth"
-                          placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "23456789,AB,"+formatDate({y:2003,m:5,d:31}, dateFormat)].join("\n")}
+                          placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "ABCD12562789,QC,"+formatDate({y:2012,m:6,d:27}, dateFormat)].join("\n")}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start" className={classes.binputIcon}>
