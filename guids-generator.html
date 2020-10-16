@@ -83,7 +83,44 @@ require(["bcrypt"], function(bcrypt) {
         },
     }));
 
+    // Health card number processing utils
+
     const provinces = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
+
+    let HC_VALIDATOR = {
+        ON: function (value) {
+            // Expected: 10 digits, possibly grouped as ####-###-## with a dash or space separator, possibly followed by a two letter version code
+            let OHIP_NB_REGEXP = /^\s*\d{4}[-\s]?\d{3}[-\s]?\d{3}([-\s]?[a-zA-Z]{2})?\s*$/;
+            if (!OHIP_NB_REGEXP.exec(value)) {
+                // Invalid format
+                return {"error" : "Health card number " + value + " is invalid for the province of ON. A 10 digit number is expected."};
+            }
+            // Extract the actual 10 digit number as a string
+            value = value.replace(/\D+/g, '');
+
+            // MOD 10 Check Digit algorithm
+            let MOD_10_check_digit = (num) => {
+                let calc, i, check, checksum = 0, r = [2,1];
+                // iterate on all the numbers in 'num'
+                for ( let i = num.length - 1; i--; ) {
+                    calc = num.charAt(i) * r[i % r.length];
+                    // handle cases where it's a 2 digits number
+                    calc = ((calc/10)|0) + (calc % 10);
+                    checksum += calc;
+                }
+                check = (10 - (checksum % 10)) % 10; // make sure to get '0' if checksum is '10'
+               let checkDigit = num % 10;
+               return (check == checkDigit);
+            }
+
+            return MOD_10_check_digit(value) ? value : {"error" : "Health card number " + value + " is invalid for the province of ON. Please check the number and try again."};
+        },
+        CA: function (value) {
+            // Generic sanitizer to use when specific province validators are unavailable:
+            // Check that it is composed of letters, numbers, and optional space or dash separators that are removed
+            return /^[a-zA-Z0-9\s\-]+$/g.exec(value) && value.replace(/\W/g, '') || {"error" : "Health card number " + value + " is not valid. Please check the number and try again."};;
+        }
+    };
 
     // Date processing utils
 
@@ -180,47 +217,6 @@ require(["bcrypt"], function(bcrypt) {
             setDateFormat(value);
         }
 
-        // MOD 10 Check Digit algorithm
-        let isValidHealthCard = (num) => {
-
-            let calc, i, check, checksum = 0, r = [2,1];
-
-            // iterate on all the numbers in 'num'
-            for ( let i=num.length-1; i--; ){
-                calc = num.charAt(i) * r[i % r.length];
-                // handle cases where it's a 2 digits number
-                calc = ((calc/10)|0) + (calc % 10);
-                checksum += calc;
-            }
-            check = (10-(checksum % 10)) % 10; // make sure to get '0' if checksum is '10'
-            let checkDigit = num % 10;
-
-            return check == checkDigit;
-        }
-
-        // Validate Ontario Health Card
-        let validateONHealthCard = (value) => {
-            // Remove everyhing except digits
-            value = value.replace(/\D+/g, '');
-
-            if (value.length != 10) {
-                return {"error" : "Health card number " + value + " is invalid for the province of ON. A 10 digit number is expected."};
-            }
-
-            // validate Ontario Health card with the MOD 10 Check Digit algorithm
-            if (!isValidHealthCard(value)) {
-                return {"error" : "Health card number " + value + " is invalid for the province of ON. Please check the number and try again."};
-            }
-            return value;
-        }
-
-        const healthCardsValidators = { "ON" : validateONHealthCard };
-
-        // Remove spaces, dashes and assume the result is valid (for now).
-        let validateDefaultHealthCard = (value) => {
-            return value.replace(/\s+/g, '').replace(/-/g, '');
-        }
-
         // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
         let checkInfoCount = (info, index) => {
             if (info.length != 3) {
@@ -247,6 +243,12 @@ require(["bcrypt"], function(bcrypt) {
                 return {"error" : "Province code " + value.toUpperCase() + " is invalid. It should be one of :" + provinces.join(", ") +"."};
             }
             return value.toUpperCase();
+        }
+
+        // Validate Health card number
+        let validateHealthCard = (value, province, dob) => {
+            // Use the province specific validator if available, otherwise default to the generic one
+            return HC_VALIDATOR[province](value, dob) || HC_VALIDATOR['CA'](value);
         }
 
         // Input validation and sanitising
@@ -295,7 +297,7 @@ require(["bcrypt"], function(bcrypt) {
                 }
 
                 // Validate Health card number y province
-                let healthCard = healthCardsValidators[info[1]] ? healthCardsValidators[info[1]](info[0]) : validateDefaultHealthCard(info[0]);
+                let healthCard = validateHealthCard(info[0], info[1], info[2]);
                 if (healthCard.error) {
                     postProcessed.push({"line" : line + index, "value": healthCard.error, "isError": true});
                     continue;
