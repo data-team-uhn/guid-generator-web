@@ -84,7 +84,12 @@ require(["bcrypt"], function(bcrypt) {
     }));
 
     const provinces = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
-    const dateFormatSpecs = {
+
+    // Date processing utils
+
+    const DEFAULT_DATE_FORMAT = 'yyyy-MM-dd';
+
+    const DATE_FORMAT_SPECS = {
         "yyyy-MM-dd" : {"separator" : "-", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
         "yyyy/MM/dd" : {"separator" : "/", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
         "yyyy.MM.dd" : {"separator" : ".", "dayIndex" : 2, "montIndex" : 1, "yearIndex" : 0},
@@ -99,71 +104,49 @@ require(["bcrypt"], function(bcrypt) {
         "MM dd yyyy" : {"separator" : " ", "dayIndex" : 1, "montIndex" : 0, "yearIndex" : 2}
     }
 
-    let sampleDate = {y: 2010, m: 12, d:23};
-    let menuEntries = {};
-
-    for (let f in dateFormatSpecs) {
-      let sampleDateFormatted = [0,0,0];
-      let specs = dateFormatSpecs[f];
-      sampleDateFormatted[specs.dayIndex] = sampleDate.d;
-      sampleDateFormatted[specs.montIndex] = sampleDate.m;
-      sampleDateFormatted[specs.yearIndex] = sampleDate.y;
-      menuEntries[f] = f + " (" + sampleDateFormatted.join(specs.separator) + ")";
+    let parseDate = (dateText, format) => {
+       var date = {};
+       var specs = DATE_FORMAT_SPECS[format];
+       var components = dateText?.split(specs.separator);
+       if (components?.length != 3) {
+           // The date must have day, month, year
+           return null;
+        }
+        return {d: +components[specs.dayIndex], m: +components[specs.montIndex], y: +components[specs.yearIndex]};
     }
 
-    function GUIDGeneratorComponent() {
-        const classes = useStyles();
-        const [ binput, setBinput ] = useState();
-        const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
-        const [ bhashes, setBhashes ] = useState({});
-        const [ validatedData, setValidatedData ] = useState([]);
-        const [ dateFormat, setDateFormat ] = useState("yyyy-MM-dd");
+    let formatDate = (date, format) => {
+      let dateFormatted = [0,0,0];
+      let specs = DATE_FORMAT_SPECS[format];
+      dateFormatted[specs.dayIndex]  = (date.d < 10 ? "0" : 0) + date.d;
+      dateFormatted[specs.montIndex] = (date.m < 10 ? "0" : 0) + date.m;
+      dateFormatted[specs.yearIndex] = date.y;
+      return dateFormatted.join(specs.separator);
+    }
 
-        let onDateFormatChange = (value) => {
-            setDateFormat(value);
-        }
-
-        let validatedateDate = (dateText) => {
-
-          if (!dateText) {
-            return false;
-          }
+    let validatedateDate = (dateText, format) => {
 
           try {
+              var date = parseDate(dateText, format);
 
-              var splitComponents = dateText.split(dateFormatSpecs[dateFormat].separator);
-              if (splitComponents.length != 3) {
-                 // The date as to be in the format dd/mm/yyyy
-                 return false;
-              }
-
-              var day = parseInt(splitComponents[dateFormatSpecs[dateFormat].dayIndex]);
-              var month = parseInt(splitComponents[dateFormatSpecs[dateFormat].montIndex]);
-              var year = parseInt(splitComponents[dateFormatSpecs[dateFormat].yearIndex]);
-
-              if (isNaN(day) || isNaN(month) || isNaN(year)) {
-                  // The day, month and year need to be numbers
-                  return false;
-              }
-
-              if (day <= 0 || month <= 0 || year <= 0) {
+              if (!(date?.d > 0 && date.m > 0 && date.y > 0)) {
                   //The day, month and year need to be positive values greater than 0
                   return false;
               }
 
-              if (month > 12) {
+              if (date.m > 12) {
                   // The month cannot be greater than 12
                   return false;
               }
 
               // assuming no leap year by default
               var daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-              if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+              if (date.y % 4 == 0 && (date.y % 100 != 0 || date.y % 400 == 0)) {
                   // current year is a leap year
                   daysPerMonth[1] = 29;
               }
 
-              if (day > daysPerMonth[month - 1]) {
+              if (date.d > daysPerMonth[date.m - 1]) {
                   // Number of days are more than those allowed for the month
                   return false;
               }
@@ -173,7 +156,28 @@ require(["bcrypt"], function(bcrypt) {
               return false;
           }
 
-          return true;
+          return formatDate(date, DEFAULT_DATE_FORMAT);
+        }
+
+    let sampleDate = {y: 2010, m: 12, d:23};
+    let menuEntries = {};
+
+    for (let f in DATE_FORMAT_SPECS) {
+      menuEntries[f] = f + " (" + formatDate (sampleDate, f) + ")";
+    }
+
+    // -------------------------------------------------------------------------------
+
+    function GUIDGeneratorComponent() {
+        const classes = useStyles();
+        const [ binput, setBinput ] = useState();
+        const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
+        const [ bhashes, setBhashes ] = useState({});
+        const [ validatedData, setValidatedData ] = useState([]);
+        const [ dateFormat, setDateFormat ] = useState(DEFAULT_DATE_FORMAT);
+
+        let onDateFormatChange = (value) => {
+            setDateFormat(value);
         }
 
         // MOD 10 Check Digit algorithm
@@ -228,11 +232,12 @@ require(["bcrypt"], function(bcrypt) {
 
         // Validate DOB
         let validateDOB = (value) => {
-            if (!validatedateDate(value)) {
+            var formattedDOB = validatedateDate(value, dateFormat);
+            if (!formattedDOB) {
                 return {"error" : "The date of birth " + value + " appears to be invalid. Please enter a correct date of birth in the format " + dateFormat};
             }
             // Replace '\' and space with '-' before encryption
-            return value.replace(/\\/g, '-').replace(/\s+/g, '-');
+            return formattedDOB;
         }
 
         // Validate Province code
@@ -357,10 +362,9 @@ require(["bcrypt"], function(bcrypt) {
                           className={classes.btextinput}
                           onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
                           onBlur={(event) => {validate()}}
-                          helperText="Please enter the health card number, province code, and date of birth as YYYY-MM-DD, separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON,2002-01-23'."
+                          helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
                           label="Health card number,Province code,Date of birth"
-                          placeholder="2345678904,ON,2002-01-23
-23456789,AB,2003-05-31"
+                          placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "23456789,AB,"+formatDate({y:2003,m:5,d:31}, dateFormat)].join("\n")}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start" className={classes.binputIcon}>
