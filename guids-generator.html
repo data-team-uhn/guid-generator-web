@@ -57,13 +57,9 @@ require(["bcrypt"], function(bcrypt) {
             width: theme.spacing(70),
             marginBottom: theme.spacing(0),
         },
-        bbutton: {
-        },
         labelRoot: {
             width: theme.spacing(70),
             color: theme.palette.text.primary,
-        },
-        selectInputLabel: {
         },
         selectInputIcon : {
             marginTop: theme.spacing(4),
@@ -82,6 +78,8 @@ require(["bcrypt"], function(bcrypt) {
             padding: "0",
         },
     }));
+
+    const salt = "$2a$10$biRUcRBR1wroz1r45ORKs.";
 
     // Health card number processing utils
 
@@ -341,11 +339,18 @@ require(["bcrypt"], function(bcrypt) {
                     (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                 } else {
                     // Salt is hardcoded here for now
-                    bcrypt.hash(item.value + projectId, "$2a$10$biRUcRBR1wroz1r45ORKs.", (err, hash) => {
+                    bcrypt.hash(item.value + projectId, salt, (err, hash) => {
                         if (err) {
                             console.error(err);
                             return;
                         }
+
+                        // Remove salt version, rounds number and actual salt from hash
+                        // Encode the hash in HEX to ensure only alphanumeric characters are generated
+                        hash = hash.replace(salt, '')
+                                 .split("")
+                                 .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
+                                 .join("");
 
                         hashes[item.line] = {"value" : hash};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
@@ -405,7 +410,7 @@ require(["bcrypt"], function(bcrypt) {
                     </Grid>
                     <Grid item>
                         <FormControl className={classes.formControl}>
-                            <InputLabel shrink id="date-format" className={classes.selectInputLabel}>
+                            <InputLabel shrink id="date-format">
                                 Date format for the dates of birth
                             </InputLabel>
                            <InputAdornment position="start" className={classes.selectInputIcon}>
@@ -425,7 +430,7 @@ require(["bcrypt"], function(bcrypt) {
                         </FormControl>
                     </Grid>
                     <Grid item>
-                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={binput?.trim().length == 0} className={classes.bbutton}>Generate GUIDs</Button>
+                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={binput?.trim().length == 0}>Generate GUIDs</Button>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
