@@ -430,7 +430,7 @@ require(["bcrypt"], function(bcrypt) {
                         </FormControl>
                     </Grid>
                     <Grid item>
-                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={binput?.trim().length == 0}>Generate GUIDs</Button>
+                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</Button>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
