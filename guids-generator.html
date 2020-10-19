@@ -229,6 +229,7 @@ require(["bcrypt"], function(bcrypt) {
         const [ bhashes, setBhashes ] = useState({});
         const [ validatedData, setValidatedData ] = useState([]);
         const [ dateFormat, setDateFormat ] = useState(DEFAULT_DATE_FORMAT);
+        const HC = 0, PROVINCE = 1, DOB = 2, COMPONENTS = 3;
 
         let onDateFormatChange = (value) => {
             setDateFormat(value);
@@ -236,9 +237,9 @@ require(["bcrypt"], function(bcrypt) {
 
         // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
         let checkInfoCount = (info) => {
-            if (info.length != 3) {
+            if (info.length != COMPONENTS) {
                 return "'" + info.join(',') + "' has " + info.length
-                    + " component" + (length > 1 ? "s" : "") + " instead of 3. Each line should contain the patient's health card number, the province code, and the patient's date of birth.";
+                    + " component" + (length > 1 ? "s" : "") + " instead of " + COMPONENTS + ". Each line should contain the patient's health card number, the province code, and the patient's date of birth.";
             }
             return null;
         }
@@ -269,10 +270,10 @@ require(["bcrypt"], function(bcrypt) {
         }
 
         // For any line check previously enered lines that contains a <health card, province> pair
-        let checkDuplicates = (line, healthCard, province, postProcessed, index) => {
-            let duplicates = postProcessed.filter( item => (item.healthCard == healthCard && item.province == province) );
+        let checkDuplicates = (info, postProcessed) => {
+            let duplicates = postProcessed.filter( item => (item.info[HC] == info[HC] && item.info[PROVINCE] == info[PROVINCE] && item.info[DOB] != info[DOB]) );
             if (duplicates.length > 0) {
-                return {"error" : province +  " health card number " + line.trim().split(/[\t,]+/)[0] + " has already been entered on line " + index + " with a different date of birth"};
+                return {"error" : info[PROVINCE] +  " health card number " + info[HC] + " has already been entered on line " + (duplicates[0].index + 1) + " with a different date of birth"};
             }
             return {};
         }
@@ -305,41 +306,41 @@ require(["bcrypt"], function(bcrypt) {
                 }
 
                 // Validate DOB
-                let date = validateDOB(info[2]);
+                let date = validateDOB(info[DOB]);
                 if (date.error) {
                     postProcessed.push({"line" : line, "index": index, "value": date.error, "isError": true});
                     continue;
                 } else {
-                    info[2] = date;
+                    info[DOB] = date;
                 }
 
                 // Validate Province code
-                let province = validateProvince(info[1]);
+                let province = validateProvince(info[PROVINCE]);
                 if (province.error) {
                     postProcessed.push({"line" : line, "index": index, "value": province.error, "isError": true});
                     continue;
                 } else {
-                    info[1] = province;
+                    info[PROVINCE] = province;
                 }
 
                 // Validate Health card number y province
-                let healthCard = validateHealthCard(info[0], info[1], info[2]);
+                let healthCard = validateHealthCard(info[HC], info[PROVINCE], info[DOB]);
                 if (healthCard.error) {
                     postProcessed.push({"line" : line, "index": index, "value": healthCard.error, "isError": true});
                     continue;
                 } else {
-                    info[0] = healthCard;
+                    info[HC] = healthCard;
                 }
 
                 // Check duplicated <health card, province> pair
-                let duplicates = checkDuplicates(line, healthCard, province, postProcessed, index);
+                let duplicates = checkDuplicates(info, postProcessed);
                 if (duplicates.error) {
                     postProcessed.push({"line" : line, "index": index, "value": duplicates.error, "isError": true});
                     continue;
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"line" : line, "index": index, "healthCard": healthCard, "province": province, "value": info[0] + info[2]});
+                postProcessed.push({"line" : line, "index": index, "info" : info.filter((item)=>true), "value": info[HC] + info[PROVINCE]});
             }
 
             setValidatedData(postProcessed);
