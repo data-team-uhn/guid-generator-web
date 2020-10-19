@@ -235,10 +235,10 @@ require(["bcrypt"], function(bcrypt) {
         }
 
         // There should be 3 pieces per each line: Health card #, Province code, Date of birth, all separated by ','
-        let checkInfoCount = (info, index) => {
+        let checkInfoCount = (info) => {
             if (info.length != 3) {
-                return "Line " + index + ", '" + info.join(',') + "', has " + info.length
-                    + " component(s) instead of 3. Each line should contain the patient's Health Card number, the province code, and the patient's date of birth.";
+                return "'" + info.join(',') + "' has " + info.length
+                    + " component" + (length > 1 ? "s" : "") + " instead of 3. Each line should contain the patient's health card number, the province code, and the patient's date of birth.";
             }
             return null;
         }
@@ -289,16 +289,16 @@ require(["bcrypt"], function(bcrypt) {
                              .filter( (item) => (item) );
 
                 // There should be 3 pieces per each line: Health card #, Province code, Date of birth
-                let countErr = checkInfoCount(info, index);
+                let countErr = checkInfoCount(info);
                 if (countErr) {
-                    postProcessed.push({"line" : line + index, "value" : countErr, "isError": true});
+                    postProcessed.push({"line" : line, "index": index, "value" : countErr, "isError": true});
                     continue;
                 }
 
                 // Validate DOB
                 let date = validateDOB(info[2]);
                 if (date.error) {
-                    postProcessed.push({"line" : line + index, "value": date.error, "isError": true});
+                    postProcessed.push({"line" : line, "index": index, "value": date.error, "isError": true});
                     continue;
                 } else {
                     info[2] = date;
@@ -307,7 +307,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Province code
                 let province = validateProvince(info[1]);
                 if (province.error) {
-                    postProcessed.push({"line" : line + index, "value": province.error, "isError": true});
+                    postProcessed.push({"line" : line, "index": index, "value": province.error, "isError": true});
                     continue;
                 } else {
                     info[1] = province;
@@ -316,14 +316,14 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Health card number y province
                 let healthCard = validateHealthCard(info[0], info[1], info[2]);
                 if (healthCard.error) {
-                    postProcessed.push({"line" : line + index, "value": healthCard.error, "isError": true});
+                    postProcessed.push({"line" : line, "index": index, "value": healthCard.error, "isError": true});
                     continue;
                 } else {
                     info[0] = healthCard;
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"line" : line + index, "value": info[0] + info[2]});
+                postProcessed.push({"line" : line, "index": index, "value": info[0] + info[2]});
             }
 
             setValidatedData(postProcessed);
@@ -407,6 +407,9 @@ require(["bcrypt"], function(bcrypt) {
                             className: classes.helperText
                           }}
                         />
+                        <FormHelperText style={{color: "red"}}>{ Object.keys(validatedData).map( item =>
+                             <div>{validatedData[item].isError ? "Line " + (+item+1) + ": " + validatedData[item].value : ""}</div>
+                        )}</FormHelperText>
                     </Grid>
                     <Grid item>
                         <FormControl className={classes.formControl}>
