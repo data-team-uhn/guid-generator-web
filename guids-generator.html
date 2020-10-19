@@ -362,22 +362,28 @@ require(["bcrypt"], function(bcrypt) {
         return (
             <div className={classes.main}>
                 <Typography variant="h3">GUID generator</Typography>
+                <Typography>Generate globally unique identifiers for patients participating in research projects from their encrypted health card number and date of birth.</Typography>
                 <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
-                        <TextField
-                          id="projectid"
-                          label="Project Id (* optional)"
-                          value={projectId}
-                          className={classes.projectidinput}
-                          onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
-                          InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Icon color="primary">label</Icon>
-                                </InputAdornment>
-                              ),
-                           }}
-                        />
+                        <FormControl className={classes.formControl}>
+                            <InputLabel shrink id="date-format">
+                                Date format used for the dates of birth
+                            </InputLabel>
+                           <InputAdornment position="start" className={classes.selectInputIcon}>
+                              <Icon color="primary">date_range</Icon>
+                            </InputAdornment>
+                            <Select
+                              className={classes.selectInput}
+                              value={dateFormat}
+                              onChange={(event) => { onDateFormatChange(event.target.value);}}
+                              onBlur={(event) => {validate()}}
+                            >
+                                { Object.keys(menuEntries).map( item =>
+                                    <MenuItem value={item}>{menuEntries[item]}</MenuItem>
+                                )}
+                            </Select>
+                            <FormHelperText>Please specify the format of the dates of birth by selecting one of the supported formats</FormHelperText>
+                        </FormControl>
                     </Grid>
                     <Grid item>
                         <TextField
@@ -412,25 +418,20 @@ require(["bcrypt"], function(bcrypt) {
                         )}</FormHelperText>
                     </Grid>
                     <Grid item>
-                        <FormControl className={classes.formControl}>
-                            <InputLabel shrink id="date-format">
-                                Date format for the dates of birth
-                            </InputLabel>
-                           <InputAdornment position="start" className={classes.selectInputIcon}>
-                              <Icon color="primary">date_range</Icon>
-                            </InputAdornment>
-                            <Select
-                              className={classes.selectInput}
-                              value={dateFormat}
-                              onChange={(event) => { onDateFormatChange(event.target.value);}}
-                              onBlur={(event) => {validate()}}
-                            >
-                                { Object.keys(menuEntries).map( item =>
-                                    <MenuItem value={item}>{menuEntries[item]}</MenuItem>
-                                )}
-                            </Select>
-                            <FormHelperText>Please specify the format of the dates of birth by selecting one of the supported formats</FormHelperText>
-                        </FormControl>
+                        <TextField
+                          id="projectid"
+                          label="Project Id (* optional)"
+                          value={projectId}
+                          className={classes.projectidinput}
+                          onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
+                          InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <Icon color="primary">label</Icon>
+                                </InputAdornment>
+                              ),
+                           }}
+                        />
                     </Grid>
                     <Grid item>
                         <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</Button>
