@@ -284,7 +284,7 @@ require(["bcrypt"], function(bcrypt) {
                 if (!line) continue;
 
                 let info = line.trim()
-                             .split(',')
+                             .split(/[\t,]+/)
                              .map( (item) => (item.trim()) )
                              .filter( (item) => (item) );
 
