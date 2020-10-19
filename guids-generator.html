@@ -366,7 +366,7 @@ require(["bcrypt"], function(bcrypt) {
                 <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
                         <FormControl className={classes.formControl}>
-                            <InputLabel shrink id="date-format">
+                            <InputLabel shrink id="date-format" className={classes.labelRoot}>
                                 Date format used for the dates of birth
                             </InputLabel>
                            <InputAdornment position="start" className={classes.selectInputIcon}>
@@ -395,7 +395,7 @@ require(["bcrypt"], function(bcrypt) {
                           onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
                           onBlur={(event) => {validate()}}
                           helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
-                          label="Health card number,Province code,Date of birth"
+                          label="Patient information in the format <Health card,Province code,Date of birth>"
                           placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "ABCD12562789,QC,"+formatDate({y:2012,m:6,d:27}, dateFormat)].join("\n")}
                           InputProps={{
                               startAdornment: (
@@ -424,6 +424,11 @@ require(["bcrypt"], function(bcrypt) {
                           value={projectId}
                           className={classes.projectidinput}
                           onChange={(event) => { setProjectId(event.target.value); setBhashes({}); }}
+                          InputLabelProps={{
+                              classes: {
+                                root: classes.labelRoot
+                              }
+                          }}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
