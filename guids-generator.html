@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@material-ui/core/umd/material-ui.production.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
     <script src="https://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
   </head>
   <body>
@@ -30,7 +31,8 @@ require.config({
 require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
-    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, Grid, List, ListItem, ListItemText, FormControl, Select, MenuItem, FormHelperText, InputLabel } = window['MaterialUI'];
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, withStyles, Grid, List, ListItem, ListItemText, FormControl, Select, MenuItem, FormHelperText, InputLabel, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper } = window['MaterialUI'];
+    const { CopyToClipboard } = window['CopyToClipboard'];
 
     const useStyles = makeStyles((theme) => ({
         bform: {
@@ -77,7 +79,32 @@ require(["bcrypt"], function(bcrypt) {
         listItem: {
             padding: "0",
         },
+        table: {
+            padding: "0",
+        },
     }));
+
+    const StyledTableCell = withStyles((theme) => ({
+      head: {
+        backgroundColor: theme.palette.action.hover,
+        padding: theme.spacing(1),
+        '&:nth-of-type(1)': {
+          width: theme.spacing(12),
+        },
+        '&:nth-of-type(2)': {
+          width: theme.spacing(8),
+        },
+        '&:nth-of-type(3)': {
+          width: theme.spacing(12),
+        },
+        '&:nth-of-type(4)': {
+          width: theme.spacing(63),
+        },
+      },
+      body: {
+        padding: theme.spacing(1),
+      },
+    }))(TableCell);
 
     const salt = "$2a$10$biRUcRBR1wroz1r45ORKs.";
 
@@ -227,6 +254,7 @@ require(["bcrypt"], function(bcrypt) {
         const [ binput, setBinput ] = useState();
         const [ projectId, setProjectId ] = useState(new URLSearchParams(window.location.search).get('project_id') || '');
         const [ bhashes, setBhashes ] = useState({});
+        const [ copied, setCopied ] = useState(false);
         const [ validatedData, setValidatedData ] = useState([]);
         const [ dateFormat, setDateFormat ] = useState(DEFAULT_DATE_FORMAT);
         const HC = 0, PROVINCE = 1, DOB = 2, COMPONENTS = 3;
@@ -283,6 +311,7 @@ require(["bcrypt"], function(bcrypt) {
             let value = binput;
             setBhashes({});
             setValidatedData([]);
+            setCopied(false);
 
             if (!value) return;
 
@@ -301,14 +330,14 @@ require(["bcrypt"], function(bcrypt) {
                 // There should be 3 pieces per each line: Health card #, Province code, Date of birth
                 let countErr = checkInfoCount(info);
                 if (countErr) {
-                    postProcessed.push({"index": index, "value" : countErr, "isError": true});
+                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value" : countErr, "isError": true});
                     continue;
                 }
 
                 // Validate DOB
                 let date = validateDOB(info[DOB]);
                 if (date.error) {
-                    postProcessed.push({"index": index, "value": date.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": date.error, "isError": true});
                     continue;
                 } else {
                     info[DOB] = date;
@@ -317,7 +346,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Province code
                 let province = validateProvince(info[PROVINCE]);
                 if (province.error) {
-                    postProcessed.push({"index": index, "value": province.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": province.error, "isError": true});
                     continue;
                 } else {
                     info[PROVINCE] = province;
@@ -326,7 +355,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Health card number y province
                 let healthCard = validateHealthCard(info[HC], info[PROVINCE], info[DOB]);
                 if (healthCard.error) {
-                    postProcessed.push({"index": index, "value": healthCard.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": healthCard.error, "isError": true});
                     continue;
                 } else {
                     info[HC] = healthCard;
@@ -335,7 +364,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Check duplicated <health card, province> pair
                 let duplicates = checkDuplicates(info, postProcessed);
                 if (duplicates.error) {
-                    postProcessed.push({"index": index, "value": duplicates.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": duplicates.error, "isError": true});
                     continue;
                 }
 
@@ -430,9 +459,6 @@ require(["bcrypt"], function(bcrypt) {
                             className: classes.helperText
                           }}
                         />
-                        <FormHelperText style={{color: "red"}}>{ Object.keys(validatedData).map( item =>
-                             <div>{validatedData[item].isError ? "Line " + (+item+1) + ": " + validatedData[item].value : ""}</div>
-                        )}</FormHelperText>
                     </Grid>
                     <Grid item>
                         <TextField
@@ -456,17 +482,40 @@ require(["bcrypt"], function(bcrypt) {
                         />
                     </Grid>
                     <Grid item>
-                        <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</Button>
+                      <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</Button>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
-                    <List>
-                        { validatedData.map( item =>
-                            <ListItem className={classes.listItem}>
-                                <ListItemText primary={bhashes[item.index].value} style={{color: bhashes[item.index].isError ? 'red' : 'black'}} />
-                            </ListItem>
-                        )}
-                    </List>
+                    <TableContainer component={Paper}>
+                        <Table className={classes.table} size="small">
+                            <TableHead>
+                              <TableRow>
+                                <StyledTableCell>Health card #</StyledTableCell>
+                                <StyledTableCell>Province</StyledTableCell>
+                                <StyledTableCell>Date of birth</StyledTableCell>
+                                <StyledTableCell>GUID
+                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\t')} onCopy={() => setCopied(true)}>
+                                    <IconButton title="Copy GGUIDs to clipboard" >
+                                      <Icon>file_copy</Icon>
+                                    </IconButton>
+                                  </CopyToClipboard>
+                                  { copied ? <span style={{color: 'green'}}>Copied</span> : null }
+                                </StyledTableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                { validatedData.map( item =>
+                                    <TableRow key={item.index}>
+                                      <StyledTableCell>{item.info[HC]}</StyledTableCell>
+                                      <StyledTableCell>{item.info[PROVINCE]}</StyledTableCell>
+                                      <StyledTableCell>{item.info[DOB]}</StyledTableCell>
+                                      <StyledTableCell style={{color: bhashes[item.index].isError ? 'red' : 'black'}}>{bhashes[item.index].value}</StyledTableCell>
+                                    </TableRow>
+                                  )
+                                }
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 }
             </div>
         );
