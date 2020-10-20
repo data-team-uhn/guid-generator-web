@@ -31,7 +31,7 @@ require.config({
 require(["bcrypt"], function(bcrypt) {
 
     const { useState } = window['React'];
-    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, withStyles, Grid, List, ListItem, ListItemText, FormControl, Select, MenuItem, FormHelperText, InputLabel, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper } = window['MaterialUI'];
+    const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, withStyles, Grid, FormControl, Select, MenuItem, FormHelperText, InputLabel, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper } = window['MaterialUI'];
     const { CopyToClipboard } = window['CopyToClipboard'];
 
     const useStyles = makeStyles((theme) => ({
@@ -55,10 +55,6 @@ require(["bcrypt"], function(bcrypt) {
         formControl: {
             width: theme.spacing(50),
         },
-        boutput: {
-            width: theme.spacing(70),
-            marginBottom: theme.spacing(0),
-        },
         labelRoot: {
             width: theme.spacing(70),
             color: theme.palette.text.primary,
@@ -75,12 +71,6 @@ require(["bcrypt"], function(bcrypt) {
         },
         helperText: {
             lineHeight: "normal",
-        },
-        listItem: {
-            padding: "0",
-        },
-        table: {
-            padding: "0",
         },
         copyButton: {
             width: theme.spacing(17),
@@ -510,7 +500,7 @@ require(["bcrypt"], function(bcrypt) {
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
                     <TableContainer component={Paper}>
-                        <Table className={classes.table} size="small">
+                        <Table size="small">
                             <TableHead>
                               <TableRow>
                                 <StyledTableCell>Health card #</StyledTableCell>
