@@ -82,6 +82,16 @@ require(["bcrypt"], function(bcrypt) {
         table: {
             padding: "0",
         },
+        copyButton: {
+            float: "right",
+        },
+        copyButtonSuccess: {
+            float: "right",
+            backgroundColor: theme.palette.success.main,
+            "&:hover,&:focus,&:visited,&": {
+                backgroundColor: theme.palette.success.dark,
+            }
+        },
     }));
 
     const StyledTableCell = withStyles((theme) => ({
@@ -405,6 +415,13 @@ require(["bcrypt"], function(bcrypt) {
             })
         }
 
+        let onCopyButtonClick = () => {
+            setCopied(true);
+            setTimeout(function() {
+                setCopied(false);
+            }, 3000);
+        }
+
         return (
             <div className={classes.main}>
                 <Typography variant="h3">GUID generator</Typography>
@@ -493,13 +510,15 @@ require(["bcrypt"], function(bcrypt) {
                                 <StyledTableCell>Health card #</StyledTableCell>
                                 <StyledTableCell>Province</StyledTableCell>
                                 <StyledTableCell>Date of birth</StyledTableCell>
-                                <StyledTableCell>GUID
-                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\t')} onCopy={() => setCopied(true)}>
-                                    <IconButton title="Copy GGUIDs to clipboard" >
-                                      <Icon>file_copy</Icon>
-                                    </IconButton>
+                                <StyledTableCell><span>GUID</span>
+                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\n\r')} onCopy={() => onCopyButtonClick()}>
+                                    <Button variant="contained"
+                                            color="primary"
+                                            className={copied ? classes.copyButtonSuccess : classes.copyButton}
+                                            startIcon=<Icon>{copied ? "check" : "file_copy"}</Icon>>
+                                            {copied ? "Copied" : "Copy GUIDs"}
+                                    </Button>
                                   </CopyToClipboard>
-                                  { copied ? <span style={{color: 'green'}}>Copied</span> : null }
                                 </StyledTableCell>
                               </TableRow>
                             </TableHead>
