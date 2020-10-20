@@ -83,10 +83,8 @@ require(["bcrypt"], function(bcrypt) {
             padding: "0",
         },
         copyButton: {
-            float: "right",
         },
         copyButtonSuccess: {
-            float: "right",
             backgroundColor: theme.palette.success.main,
             "&:hover,&:focus,&:visited,&": {
                 backgroundColor: theme.palette.success.dark,
@@ -510,18 +508,23 @@ require(["bcrypt"], function(bcrypt) {
                                 <StyledTableCell>Health card #</StyledTableCell>
                                 <StyledTableCell>Province</StyledTableCell>
                                 <StyledTableCell>Date of birth</StyledTableCell>
-                                <StyledTableCell>GUID
-                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\r\n')}
+                                <StyledTableCell>
+                                  <Grid container direction="row" justify="space-between" alignItems="center">
+                                    <Grid item>GUID</Grid>
+                                    <Grid item>
+                                      <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\r\n')}
                                                    onCopy={() => onCopyButtonClick()}
                                                    options={{"format" : "text/plain", "debug" : true}}
-                                  >
-                                    <Button variant="contained"
+                                        >
+                                        <Button variant="contained"
                                             color="primary"
                                             className={copied ? classes.copyButtonSuccess : classes.copyButton}
                                             startIcon=<Icon>{copied ? "check" : "file_copy"}</Icon>>
                                             {copied ? "Copied" : "Copy GUIDs"}
-                                    </Button>
-                                  </CopyToClipboard>
+                                        </Button>
+                                      </CopyToClipboard>
+                                    </Grid>
+                                  </Grid>
                                 </StyledTableCell>
                               </TableRow>
                             </TableHead>
