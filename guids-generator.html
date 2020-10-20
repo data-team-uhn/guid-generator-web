@@ -83,11 +83,13 @@ require(["bcrypt"], function(bcrypt) {
             padding: "0",
         },
         copyButton: {
+            width: theme.spacing(17),
         },
         copyButtonSuccess: {
-            backgroundColor: theme.palette.success.main,
+            width: theme.spacing(17),
+            backgroundColor: theme.palette.success.light,
             "&:hover,&:focus,&:visited,&": {
-                backgroundColor: theme.palette.success.dark,
+                backgroundColor: theme.palette.success.main,
             }
         },
     }));
@@ -113,6 +115,12 @@ require(["bcrypt"], function(bcrypt) {
         padding: theme.spacing(1),
       },
     }))(TableCell);
+
+    const StyledButton = withStyles((theme) => ({
+      label: {
+        textTransform: "none",
+      },
+    }))(Button);
 
     const salt = "$2a$10$biRUcRBR1wroz1r45ORKs.";
 
@@ -497,7 +505,7 @@ require(["bcrypt"], function(bcrypt) {
                         />
                     </Grid>
                     <Grid item>
-                      <Button onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</Button>
+                      <StyledButton onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</StyledButton>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
@@ -516,12 +524,13 @@ require(["bcrypt"], function(bcrypt) {
                                                    onCopy={() => onCopyButtonClick()}
                                                    options={{"format" : "text/plain", "debug" : true}}
                                         >
-                                        <Button variant="contained"
+                                        <StyledButton variant="contained"
                                             color="default"
+                                            title={copied ? "GUIDs copied to clipboard" : "Copy all GUIDs to clipboard"}
                                             className={copied ? classes.copyButtonSuccess : classes.copyButton}
-                                            startIcon=<Icon>{copied ? "check" : "file_copy"}</Icon>>
+                                            startIcon={<Icon>{copied ? "check" : "file_copy"}</Icon>}>
                                             {copied ? "Copied" : "Copy GUIDs"}
-                                        </Button>
+                                        </StyledButton>
                                       </CopyToClipboard>
                                     </Grid>
                                   </Grid>
