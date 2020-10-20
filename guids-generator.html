@@ -510,8 +510,8 @@ require(["bcrypt"], function(bcrypt) {
                                 <StyledTableCell>Health card #</StyledTableCell>
                                 <StyledTableCell>Province</StyledTableCell>
                                 <StyledTableCell>Date of birth</StyledTableCell>
-                                <StyledTableCell><span>GUID</span>
-                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\n\r')} onCopy={() => onCopyButtonClick()}>
+                                <StyledTableCell>GUID
+                                  <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\r\n')} onCopy={() => onCopyButtonClick()}>
                                     <Button variant="contained"
                                             color="primary"
                                             className={copied ? classes.copyButtonSuccess : classes.copyButton}
