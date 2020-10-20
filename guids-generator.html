@@ -271,7 +271,7 @@ require(["bcrypt"], function(bcrypt) {
 
         // For any line check previously enered lines that contains a <health card, province> pair
         let checkDuplicates = (info, postProcessed) => {
-            let duplicates = postProcessed.filter( item => (item.info[HC] == info[HC] && item.info[PROVINCE] == info[PROVINCE] && item.info[DOB] != info[DOB]) );
+            let duplicates = postProcessed.filter( item => (!item.isError && item.info[HC] == info[HC] && item.info[PROVINCE] == info[PROVINCE] && item.info[DOB] != info[DOB]) );
             if (duplicates.length > 0) {
                 return {"error" : info[PROVINCE] +  " health card number " + info[HC] + " has already been entered on line " + (duplicates[0].index + 1) + " with a different date of birth"};
             }
@@ -301,14 +301,14 @@ require(["bcrypt"], function(bcrypt) {
                 // There should be 3 pieces per each line: Health card #, Province code, Date of birth
                 let countErr = checkInfoCount(info);
                 if (countErr) {
-                    postProcessed.push({"line" : line, "index": index, "value" : countErr, "isError": true});
+                    postProcessed.push({"index": index, "value" : countErr, "isError": true});
                     continue;
                 }
 
                 // Validate DOB
                 let date = validateDOB(info[DOB]);
                 if (date.error) {
-                    postProcessed.push({"line" : line, "index": index, "value": date.error, "isError": true});
+                    postProcessed.push({"index": index, "value": date.error, "isError": true});
                     continue;
                 } else {
                     info[DOB] = date;
@@ -317,7 +317,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Province code
                 let province = validateProvince(info[PROVINCE]);
                 if (province.error) {
-                    postProcessed.push({"line" : line, "index": index, "value": province.error, "isError": true});
+                    postProcessed.push({"index": index, "value": province.error, "isError": true});
                     continue;
                 } else {
                     info[PROVINCE] = province;
@@ -326,7 +326,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Health card number y province
                 let healthCard = validateHealthCard(info[HC], info[PROVINCE], info[DOB]);
                 if (healthCard.error) {
-                    postProcessed.push({"line" : line, "index": index, "value": healthCard.error, "isError": true});
+                    postProcessed.push({"index": index, "value": healthCard.error, "isError": true});
                     continue;
                 } else {
                     info[HC] = healthCard;
@@ -335,12 +335,12 @@ require(["bcrypt"], function(bcrypt) {
                 // Check duplicated <health card, province> pair
                 let duplicates = checkDuplicates(info, postProcessed);
                 if (duplicates.error) {
-                    postProcessed.push({"line" : line, "index": index, "value": duplicates.error, "isError": true});
+                    postProcessed.push({"index": index, "value": duplicates.error, "isError": true});
                     continue;
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"line" : line, "index": index, "info" : info.filter((item)=>true), "value": info[HC] + info[PROVINCE]});
+                postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": info[HC] + info[PROVINCE]});
             }
 
             setValidatedData(postProcessed);
@@ -350,9 +350,9 @@ require(["bcrypt"], function(bcrypt) {
 
             let hashes = {};
 
-            validatedData.forEach( (item, index) => {
+            validatedData.forEach( (item) => {
                 if (item.isError) {
-                    hashes[item.line] = item;
+                    hashes[item.index] = item;
                     (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                 } else {
                     // Salt is hardcoded here for now
@@ -369,7 +369,7 @@ require(["bcrypt"], function(bcrypt) {
                                  .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
                                  .join("");
 
-                        hashes[item.line] = {"value" : hash};
+                        hashes[item.index] = {"value" : hash};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                     })
                 }
@@ -411,7 +411,7 @@ require(["bcrypt"], function(bcrypt) {
                           className={classes.btextinput}
                           onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
                           onBlur={(event) => {validate()}}
-                          helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by ',' for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
+                          helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by commas or tabs for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
                           label="Patient information in the format <Health card,Province code,Date of birth>"
                           placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "ABCD12562789,QC,"+formatDate({y:2012,m:6,d:27}, dateFormat)].join("\n")}
                           InputProps={{
@@ -463,7 +463,7 @@ require(["bcrypt"], function(bcrypt) {
                     <List>
                         { validatedData.map( item =>
                             <ListItem className={classes.listItem}>
-                                <ListItemText primary={bhashes[item.line].value} style={{color: bhashes[item.line].isError ? 'red' : 'black'}} />
+                                <ListItemText primary={bhashes[item.index].value} style={{color: bhashes[item.index].isError ? 'red' : 'black'}} />
                             </ListItem>
                         )}
                     </List>
