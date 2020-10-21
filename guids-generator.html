@@ -148,11 +148,11 @@ require(["bcrypt"], function(bcrypt) {
             return MOD_10_check_digit(value) ? value : {"error" : "Health card number " + value + " is invalid for the province of ON. Please check the number and try again."};
         },
         QC: function (value, dob) {
-            console.log(dob);
+            let disableValidateChecksum = false;
             // Expected: 4 letters and 8 digits, possibly grouped as XXXX #### #### with a space separator
             let RAMQ_NB_REGEXP = /^\s*[a-zA-Z]{4}\s?\d{4}\s?\d{4}\s*$/;
             if (!RAMQ_NB_REGEXP.exec(value)) {
-                return {"error" : "Health card number " + value + " is invalid for the province of QC. A 4 letter word followed by 8 digits number is expected."};
+                return {"error" : "Health card number " + value + " is invalid for the province of QC. A 4 letter word followed by 8 digits is expected."};
             }
             // Extract the meaningful characters as a string
             value = value.replace(/\W+/g, '').toUpperCase();
@@ -164,7 +164,46 @@ require(["bcrypt"], function(bcrypt) {
             if (dobDigits != hcDobSexDigits && dobDigits + 5000 != hcDobSexDigits) {
                 return {"error" : "Health card number " + value + " is invalid for the province of QC. The digits do not match the provided date of birth."};
             }
-            return value;
+            // Checksum validation
+            // Source of the validation method used: https://github.com/petalmd/health_card/blob/master/spec/validators/canada/quebec_validator_spec.rb
+            // Step 1 : letter to code
+            let letterToCode = (letter) => {
+                // A is 1, B is 2...
+                var code = letter.charCodeAt(0) - "A".charCodeAt(0) + 1;
+                // ?!!! There's an imaginary letter between `R` and `S`
+                if (code > 18) code += 1;
+                return (code+"").padStart(2,0);
+            }
+            // Step 2: augment the hc number: coded letters + full dob + 11th digit
+            let hcToDigits = (value) => {
+                let hcCode = "";
+                // Coded letters:
+                for (let i = 0; i < 4; ++i) {
+                    hcCode += letterToCode(value.charAt(i));
+                }
+                // Full DOB
+                hcCode += dob.replace(/-/g, '');
+                // 11th digit:
+                hcCode += value.charAt(10);
+                return hcCode;
+            }
+            // Step 3: compute checksum
+            let validateChecksum = (value) => {
+                // 50 is added to the month group of the HC number for females
+                let isFemale = (+value.charAt(6) > 1);
+                let hcCode = hcToDigits(value);
+                let checksum = 0
+                // Mystery checksum algorithm:
+                Array(7, 1, 1, 3, 9, 7, 3, 9, 5, 3, 1, 3, 5, 7, 6, 9, 1).map ( (factor, index) => {
+                     checksum += factor * (+hcCode.charAt(index))
+                } );
+                if (isFemale) checksum += 4;
+                // compare to the last digit of the health card number
+                return (checksum %= 10) == +value.charAt(value.length - 1) ;
+            }
+            return  disableValidateChecksum || validateChecksum(value) ?
+                    value :
+                    {"error" : "Health card number " + value + " is invalid for the province of QC. Please check the number and try again."};
         },
         CA: function (value) {
             // Generic sanitizer to use when specific province validators are unavailable:
