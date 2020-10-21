@@ -78,6 +78,7 @@ require(["bcrypt"], function(bcrypt) {
         copyButtonSuccess: {
             width: theme.spacing(17),
             backgroundColor: theme.palette.success.light,
+            color: theme.palette.success.contrastText,
             "&:hover,&:focus,&:visited,&": {
                 backgroundColor: theme.palette.success.main,
             }
@@ -284,7 +285,6 @@ require(["bcrypt"], function(bcrypt) {
             if (!formattedDOB) {
                 return {"error" : "The date of birth " + value + " appears to be invalid. Please enter a correct date of birth in the format " + dateFormat};
             }
-            // Replace '\' and space with '-' before encryption
             return formattedDOB;
         }
 
@@ -336,14 +336,14 @@ require(["bcrypt"], function(bcrypt) {
                 // There should be 3 pieces per each line: Health card #, Province code, Date of birth
                 let countErr = checkInfoCount(info);
                 if (countErr) {
-                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value" : countErr, "isError": true});
+                    postProcessed.push({"index": index, "info" : info, "value" : countErr, "isError": true});
                     continue;
                 }
 
                 // Validate DOB
                 let date = validateDOB(info[DOB]);
                 if (date.error) {
-                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": date.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info, "value": date.error, "isError": true});
                     continue;
                 } else {
                     info[DOB] = date;
@@ -352,7 +352,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Province code
                 let province = validateProvince(info[PROVINCE]);
                 if (province.error) {
-                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": province.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info, "value": province.error, "isError": true});
                     continue;
                 } else {
                     info[PROVINCE] = province;
@@ -361,7 +361,7 @@ require(["bcrypt"], function(bcrypt) {
                 // Validate Health card number y province
                 let healthCard = validateHealthCard(info[HC], info[PROVINCE], info[DOB]);
                 if (healthCard.error) {
-                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": healthCard.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info, "value": healthCard.error, "isError": true});
                     continue;
                 } else {
                     info[HC] = healthCard;
@@ -370,12 +370,12 @@ require(["bcrypt"], function(bcrypt) {
                 // Check duplicated <health card, province> pair
                 let duplicates = checkDuplicates(info, postProcessed);
                 if (duplicates.error) {
-                    postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": duplicates.error, "isError": true});
+                    postProcessed.push({"index": index, "info" : info, "value": duplicates.error, "isError": true});
                     continue;
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"index": index, "info" : info.filter((item)=>true), "value": info[HC] + info[PROVINCE]});
+                postProcessed.push({"index": index, "info" : info, "value": info[HC] + info[PROVINCE]});
             }
 
             setValidatedData(postProcessed);
