@@ -17,6 +17,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
     <script src="https://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/aes.js"></script>
   </head>
   <body>
     <div id="root"></div>
@@ -114,6 +115,7 @@ require(["bcrypt"], function(bcrypt) {
     }))(Button);
 
     const salt = "$2a$10$biRUcRBR1wroz1r45ORKs.";
+    const publicKey = "public key";
 
     // Health card number processing utils
 
@@ -440,10 +442,19 @@ require(["bcrypt"], function(bcrypt) {
                         // Encode the hash in HEX to ensure only alphanumeric characters are generated
                         hash = hash.replace(salt, '')
                                  .split("")
-                                 .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
+                                 .map((c, i) => {
+								                   let str = c.charCodeAt(0).toString(16).padStart(2, "0");
+                                                   // Add random noise in alternating bytes
+                                                   if (i % 2 === 0) {
+                                                     str += Math.random().toString(16).substring(2, 4);
+                                                   }
+                                                   return str;
+                                                })
                                  .join("");
+                        // Encrypt the result with a public key, decrypt via CryptoJS.AES.decrypt(encrypted, "public key").toString(CryptoJS.enc.Utf8)
+                        let encrypted = CryptoJS.AES.encrypt(hash, publicKey).toString();
 
-                        hashes[item.index] = {"value" : hash};
+                        hashes[item.index] = {"value" : encrypted};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                     })
                 }
@@ -459,7 +470,7 @@ require(["bcrypt"], function(bcrypt) {
 
         return (
             <div className={classes.main}>
-                <Typography variant="h3">GUID generator</Typography>
+                <Typography variant="h3">eGUID generator</Typography>
                 <Typography>Generate globally unique identifiers for patients participating in research projects from their encrypted health card number and date of birth.</Typography>
                 <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
@@ -534,7 +545,7 @@ require(["bcrypt"], function(bcrypt) {
                         />
                     </Grid>
                     <Grid item>
-                      <StyledButton onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate GUIDs</StyledButton>
+                      <StyledButton onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate eGUIDs</StyledButton>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
@@ -547,7 +558,7 @@ require(["bcrypt"], function(bcrypt) {
                                 <StyledTableCell>Date of birth</StyledTableCell>
                                 <StyledTableCell>
                                   <Grid container direction="row" justify="space-between" alignItems="center">
-                                    <Grid item>GUID</Grid>
+                                    <Grid item>eGUID</Grid>
                                     <Grid item>
                                       <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\r\n')}
                                                    onCopy={() => onCopyButtonClick()}
@@ -555,10 +566,10 @@ require(["bcrypt"], function(bcrypt) {
                                         >
                                         <StyledButton variant="contained"
                                             color="default"
-                                            title={copied ? "GUIDs copied to clipboard" : "Copy all GUIDs to clipboard"}
+                                            title={copied ? "eGUIDs copied to clipboard" : "Copy all eGUIDs to clipboard"}
                                             className={copied ? classes.copyButtonSuccess : classes.copyButton}
                                             startIcon={<Icon>{copied ? "check" : "file_copy"}</Icon>}>
-                                            {copied ? "Copied" : "Copy GUIDs"}
+                                            {copied ? "Copied" : "Copy eGUIDs"}
                                         </StyledButton>
                                       </CopyToClipboard>
                                     </Grid>
