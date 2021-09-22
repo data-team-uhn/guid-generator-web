@@ -17,7 +17,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/react-copy-to-clipboard/build/react-copy-to-clipboard.js"></script>
     <script src="https://requirejs.org/docs/release/2.1.5/comments/require.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/aes.js"></script>
   </head>
   <body>
     <div id="root"></div>
@@ -25,11 +24,12 @@
 
 require.config({
     paths: {
-       "bcrypt": "https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt"
+       "bcrypt": "https://unpkg.com/bcryptjs@2.4.3/dist/bcrypt",
+       "jsencrypt": "https://unpkg.com/jsencrypt@3.2.1/bin/jsencrypt"
     }
 });
 
-require(["bcrypt"], function(bcrypt) {
+require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
 
     const { useState, useEffect } = window['React'];
     const { TextField, InputAdornment, Icon, Button, IconButton, Typography, makeStyles, withStyles, Grid, FormControl, Select, MenuItem, FormHelperText, InputLabel, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper } = window['MaterialUI'];
@@ -476,8 +476,10 @@ require(["bcrypt"], function(bcrypt) {
                                                    return str;
                                                 })
                                  .join("");
-                        // Encrypt the result with a public key, decrypt via CryptoJS.AES.decrypt(encrypted, "public key").toString(CryptoJS.enc.Utf8)
-                        let encrypted = CryptoJS.AES.encrypt(hash, publicKey).toString();
+                        // Encrypt the result with a public key
+                        let encrypt = new jsencrypt();
+                        encrypt.setPublicKey(publicKey);
+                        let encrypted = encrypt.encrypt(hash);
 
                         hashes[item.index] = {"value" : encrypted};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
