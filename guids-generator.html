@@ -456,7 +456,6 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                     hashes[item.index] = item;
                     (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                 } else {
-                    // Salt is hardcoded here for now
                     bcrypt.hash(item.value + projectId, salt, (err, hash) => {
                         if (err) {
                             console.error(err);
@@ -470,9 +469,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                                  .map((c, i) => {
                                                    let str = c.charCodeAt(0).toString(16).padStart(2, "0");
                                                    // Add random noise in alternating bytes
-                                                   if (i % 2 === 0) {
-                                                     str += Math.random().toString(16).substring(2, 4);
-                                                   }
+                                                   str += Math.random().toString(16).substring(2, 4);
                                                    return str;
                                                 })
                                  .join("");
