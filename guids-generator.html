@@ -462,21 +462,23 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                             return;
                         }
 
-                        // Remove salt version, rounds number and actual salt from hash
-                        // Encode the hash in HEX to ensure only alphanumeric characters are generated
-                        hash = hash.replace(salt, '')
-                                 .split("")
-                                 .map((c, i) => {
-                                                   let str = c.charCodeAt(0).toString(16).padStart(2, "0");
-                                                   // Add random noise in alternating bytes
-                                                   str += Math.random().toString(16).substring(2, 4);
-                                                   return str;
-                                                })
-                                 .join("");
+                        /*
+                         Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
+                         into a Typed Array that we can work with byte-by-byte.
+                        */
+                        hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+
+                        // Interlace the hash with random noise bytes
+						let noisyhash = new Uint8Array(2 * hash.length);
+						for (let i = 0; i < hash.length; i++) {
+							noisyhash[2*i] = hash[i];
+							noisyhash[2*i + 1] = Math.floor(256 * Math.random());
+						}
+
                         // Encrypt the result with a public key
                         let encrypt = new jsencrypt();
                         encrypt.setPublicKey(publicKey);
-                        let encrypted = encrypt.encrypt(hash);
+                        let encrypted = encrypt.encrypt(String.fromCharCode.apply(null, noisyhash));
 
                         hashes[item.index] = {"value" : encrypted};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
