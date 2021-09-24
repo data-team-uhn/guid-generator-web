@@ -469,11 +469,11 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                         hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
 
                         // Interlace the hash with random noise bytes
-						let noisyhash = new Uint8Array(2 * hash.length);
-						for (let i = 0; i < hash.length; i++) {
-							noisyhash[2*i] = hash[i];
-							noisyhash[2*i + 1] = Math.floor(256 * Math.random());
-						}
+                        let noisyhash = new Uint8Array(2 * hash.length);
+                        for (let i = 0; i < hash.length; i++) {
+                            noisyhash[2*i] = hash[i];
+                            noisyhash[2*i + 1] = Math.floor(256 * Math.random());
+                        }
 
                         // Encrypt the result with a public key
                         let encrypt = new jsencrypt();
