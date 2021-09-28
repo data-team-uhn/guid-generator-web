@@ -305,6 +305,11 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
         const [ validatedData, setValidatedData ] = useState([]);
         const [ dateFormat, setDateFormat ] = useState(DEFAULT_DATE_FORMAT);
         const [ publicKey, setPublicKey ] = useState("");
+        const [ title, setTitle ] = useState("GUID generator");
+        const [ description, setDescription ] = useState("Generate globally unique identifiers for patients participating in research projects from their encrypted health card number and date of birth");
+        const [ lockDateFormat, setLockDateFormat ] = useState(false);
+        const [ enableObfuscation, setEnableObfuscation ] = useState(false);
+        const [ projectName, setProjectName ] = useState("GUID");
         const HC = 0, PROVINCE = 1, DOB = 2, COMPONENTS = 3;
 
         // Fetch keys
@@ -328,7 +333,17 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
               .then((response) => response.ok ? response.json() : Promise.reject(response))
               .then((json) => {
                 console.log(json);
-                setProjectId(json.projectId);
+                json.title && setTitle(json.title);
+                json.description && setDescription(json.description);
+                if (json.dateFormat && DATE_FORMAT_SPECS.hasOwnProperty(json.dateFormat)) {
+                  setDateFormat(json.dateFormat);
+                  setLockDateFormat(true);
+                }
+                if (json.enableObfuscation) {
+                    setEnableObfuscation(true);
+                    setProjectName("eGUID");
+                }
+                json.projectId && setProjectId(json.projectId);
             });
         }, [projectId]);
 
@@ -462,23 +477,34 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                             return;
                         }
 
-                        /*
-                         Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
-                         into a Typed Array that we can work with byte-by-byte.
-                        */
-                        hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+                        let encrypted = '';
 
-                        // Interlace the hash with random noise bytes
-                        let noisyhash = new Uint8Array(2 * hash.length);
-                        for (let i = 0; i < hash.length; i++) {
-                            noisyhash[2*i] = hash[i];
-                            noisyhash[2*i + 1] = Math.floor(256 * Math.random());
+                        if (!enableObfuscation) {
+                            // Remove salt version, rounds number and actual salt from hash
+                            // Encode the hash in HEX to ensure only alphanumeric characters are generated
+                            encrypted = hash.replace(salt, '')
+                                 .split("")
+                                 .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
+                                 .join("");
+                        } else {
+                            /*
+                             Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
+                             into a Typed Array that we can work with byte-by-byte.
+                            */
+                            hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+
+                            // Interlace the hash with random noise bytes
+                            let noisyhash = new Uint8Array(2 * hash.length);
+                            for (let i = 0; i < hash.length; i++) {
+                                noisyhash[2*i] = hash[i];
+                                noisyhash[2*i + 1] = Math.floor(256 * Math.random());
+                            }
+
+                            // Encrypt the result with a public key
+                            let encrypt = new jsencrypt();
+                            encrypt.setPublicKey(publicKey);
+                            encrypted = encrypt.encrypt(String.fromCharCode.apply(null, noisyhash));
                         }
-
-                        // Encrypt the result with a public key
-                        let encrypt = new jsencrypt();
-                        encrypt.setPublicKey(publicKey);
-                        let encrypted = encrypt.encrypt(String.fromCharCode.apply(null, noisyhash));
 
                         hashes[item.index] = {"value" : encrypted};
                         (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
@@ -496,11 +522,11 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
 
         return (
             <div className={classes.main}>
-                <Typography variant="h3">eGUID generator</Typography>
-                <Typography>Generate globally unique identifiers for patients participating in research projects from their encrypted health card number and date of birth.</Typography>
+                <Typography variant="h3">{title}</Typography>
+                <Typography>{description}</Typography>
                 <Grid container direction="column" wrap="nowrap" spacing={6} className={classes.bform}>
                     <Grid item>
-                        <FormControl className={classes.formControl}>
+                        <FormControl className={classes.formControl} disabled={lockDateFormat}>
                             <InputLabel shrink id="date-format" className={classes.labelRoot}>
                                 Date format used for the dates of birth
                             </InputLabel>
@@ -550,7 +576,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                         />
                     </Grid>
                     <Grid item>
-                      <StyledButton onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>Generate eGUIDs</StyledButton>
+                      <StyledButton onClick={() => onSubmit()} variant="contained" color="primary" disabled={!(binput?.trim().length > 0)}>{`Generate ${projectName}s`}</StyledButton>
                     </Grid>
                 </Grid>
                 { Object.keys(bhashes).length > 0 &&
@@ -563,7 +589,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                                 <StyledTableCell>Date of birth</StyledTableCell>
                                 <StyledTableCell>
                                   <Grid container direction="row" justify="space-between" alignItems="center">
-                                    <Grid item>eGUID</Grid>
+                                    <Grid item>{projectName}</Grid>
                                     <Grid item>
                                       <CopyToClipboard text={validatedData.map(item => item.isError ? '' : bhashes[item.index].value).join('\r\n')}
                                                    onCopy={() => onCopyButtonClick()}
@@ -571,10 +597,10 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                                         >
                                         <StyledButton variant="contained"
                                             color="default"
-                                            title={copied ? "eGUIDs copied to clipboard" : "Copy all eGUIDs to clipboard"}
+                                            title={copied ? `${projectName}s copied to clipboard` : `Copy all ${projectName}s to clipboard`}
                                             className={copied ? classes.copyButtonSuccess : classes.copyButton}
                                             startIcon={<Icon>{copied ? "check" : "file_copy"}</Icon>}>
-                                            {copied ? "Copied" : "Copy eGUIDs"}
+                                            {copied ? "Copied" : `Copy ${projectName}s`}
                                         </StyledButton>
                                       </CopyToClipboard>
                                     </Grid>
