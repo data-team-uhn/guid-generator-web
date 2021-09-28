@@ -462,6 +462,30 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
             setValidatedData(postProcessed);
         }
 
+        let phiHashFunction = (data, salt, callback) => {
+            /*
+             For now, we use the bcrypt.hash() function.
+             However all hashing of personal health information (PHI)
+             will be done using this function so that, if necessary,
+             switching to a new hashing function/algorithm will be
+             greatly simplified.
+            */
+            bcrypt.hash(data, salt, (err, hash) => {
+                if (err) {
+                    callback(err, undefined);
+                } else {
+                    /*
+                     Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
+                     into a Typed Array that we can work with byte-by-byte. The number -31 is specified
+                     as the actual hash value calculated by the bcrypt module is in the last 31
+                     characters of its output. See https://www.npmjs.com/package/bcrypt, "Hash Info" section
+                    */
+                    let hashBytes = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+                    callback(undefined, hashBytes);
+                }
+            });
+        }
+
         let onSubmit = () => {
 
             let hashes = {};
@@ -471,7 +495,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                     hashes[item.index] = item;
                     (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
                 } else {
-                    bcrypt.hash(item.value + projectId, salt, (err, hash) => {
+                    phiHashFunction(item.value + projectId, salt, (err, hash) => {
                         if (err) {
                             console.error(err);
                             return;
@@ -480,19 +504,9 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                         let encrypted = '';
 
                         if (!enableObfuscation) {
-                            // Remove salt version, rounds number and actual salt from hash
                             // Encode the hash in HEX to ensure only alphanumeric characters are generated
-                            encrypted = hash.replace(salt, '')
-                                 .split("")
-                                 .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
-                                 .join("");
+                            encrypted = hash.map(x => x.toString(16).padStart(2, "0")).join("");
                         } else {
-                            /*
-                             Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
-                             into a Typed Array that we can work with byte-by-byte.
-                            */
-                            hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
-
                             // Interlace the hash with random noise bytes
                             let noisyhash = new Uint8Array(2 * hash.length);
                             for (let i = 0; i < hash.length; i++) {
