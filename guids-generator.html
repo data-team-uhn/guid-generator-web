@@ -249,7 +249,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
       dateFormatted[specs.dayIndex]  = (date.d < 10 ? "0" : 0) + date.d;
       dateFormatted[specs.montIndex] = (date.m < 10 ? "0" : 0) + date.m;
       dateFormatted[specs.yearIndex] = date.y;
-      return dateFormatted.join(specs.separator);
+      return dateFormatted.join("");
     }
 
     let validatedateDate = (dateText, format) => {
@@ -456,7 +456,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"index": index, "info" : info, "value": info[HC] + info[PROVINCE]});
+                postProcessed.push({"index": index, "info" : info, "value": info[HC] + info[PROVINCE] + info[DOB]});
             }
 
             setValidatedData(postProcessed);
