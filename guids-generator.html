@@ -576,7 +576,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
 
                         if (!enableObfuscation) {
                             // Encode the hash in HEX to ensure only alphanumeric characters are generated
-                            encrypted = hash.map(x => x.toString(16).padStart(2, "0")).join("");
+                            encrypted = [ ...hash ].map(x => x.toString(16).padStart(2, "0")).join("");
                         } else {
                             // Interlace the hash with random noise bytes
                             let noisyhash = new Uint8Array(2 * hash.length);
