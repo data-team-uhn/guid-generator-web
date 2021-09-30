@@ -243,13 +243,13 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
         return {d: +components[specs.dayIndex], m: +components[specs.montIndex], y: +components[specs.yearIndex]};
     }
 
-    let formatDate = (date, format) => {
+    let formatDate = (date, format, addSeparator) => {
       let dateFormatted = [0,0,0];
       let specs = DATE_FORMAT_SPECS[format];
       dateFormatted[specs.dayIndex]  = (date.d < 10 ? "0" : 0) + date.d;
       dateFormatted[specs.montIndex] = (date.m < 10 ? "0" : 0) + date.m;
       dateFormatted[specs.yearIndex] = date.y;
-      return dateFormatted.join("");
+      return dateFormatted.join(addSeparator ? specs.separator : "");
     }
 
     let validatedateDate = (dateText, format) => {
@@ -284,14 +284,14 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
               return false;
           }
 
-          return formatDate(date, DEFAULT_DATE_FORMAT);
+          return formatDate(date, DEFAULT_DATE_FORMAT, false);
         }
 
     let sampleDate = {y: 2010, m: 12, d:23};
     let menuEntries = {};
 
     for (let f in DATE_FORMAT_SPECS) {
-      menuEntries[f] = f + " (" + formatDate (sampleDate, f) + ")";
+      menuEntries[f] = f + " (" + formatDate (sampleDate, f, true) + ")";
     }
 
     // -------------------------------------------------------------------------------
@@ -555,9 +555,9 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                           className={classes.btextinput}
                           onChange={(event) => { setBinput(event.target.value); setBhashes({}); setValidatedData([]);}}
                           onBlur={(event) => {validate()}}
-                          helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by commas or tabs for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat) + "'."}
+                          helperText={"Please enter the health card number, province code, and date of birth as " + dateFormat +", separated by commas or tabs for one or more patients, one patient per line. Example:'2345678904,ON," + formatDate({y:2002, m: 1, d:23}, dateFormat, true) + "'."}
                           label="Patient information in the format <Health card,Province code,Date of birth>"
-                          placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat), "ABCD12562789,QC,"+formatDate({y:2012,m:6,d:27}, dateFormat)].join("\n")}
+                          placeholder={["2345678904,ON," + formatDate({y:2002,m:1,d:23}, dateFormat, true), "ABCD12562789,QC,"+formatDate({y:2012,m:6,d:27}, dateFormat, true)].join("\n")}
                           InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start" className={classes.binputIcon}>
