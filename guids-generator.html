@@ -310,9 +310,13 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
         const [ lockDateFormat, setLockDateFormat ] = useState(false);
         const [ enableObfuscation, setEnableObfuscation ] = useState(false);
         const [ projectName, setProjectName ] = useState("GUID");
+        // An optional configuration key specifying the URL of a service for backend storage of the data encoded as guids
+        const [ storageService, setStorageService ] = useState("");
+        const [ timestampsData, setTimestampsData ] = useState(null);
+
         const HC = 0, PROVINCE = 1, DOB = 2, COMPONENTS = 3;
 
-        // Fetch keys
+        // Fetch configs
         useEffect(() => {
             if (publicKey) {
               return;
@@ -321,6 +325,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
               .then((response) => response.ok ? response.json() : Promise.reject(response))
               .then((json) => {
                 console.log(json);
+                json.storageService && setStorageService(json.storageService);
                 setPublicKey(json.key);
             });
         }, [publicKey]);
@@ -465,51 +470,85 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
         let onSubmit = () => {
 
             let hashes = {};
+            validatedData.filter(item => item.isError).forEach( (item) => {
+                hashes[item.index] = item;
+                (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
+            });
 
-            validatedData.forEach( (item) => {
-                if (item.isError) {
-                    hashes[item.index] = item;
-                    (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
-                } else {
-                    bcrypt.hash(item.value + projectId, salt, (err, hash) => {
-                        if (err) {
-                            console.error(err);
-                            return;
+            validatedData.filter(item => !item.isError).forEach( (item) => {
+                bcrypt.hash(item.value + projectId, salt, (err, hash) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+
+                    let encrypted = '';
+
+                    if (!enableObfuscation) {
+                        // Remove salt version, rounds number and actual salt from hash
+                        // Encode the hash in HEX to ensure only alphanumeric characters are generated
+                        encrypted = hash.replace(salt, '')
+                             .split("")
+                             .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
+                             .join("");
+                    } else {
+                        /*
+                         Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
+                         into a Typed Array that we can work with byte-by-byte.
+                        */
+                        hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+
+                        // Interlace the hash with random noise bytes
+                        let noisyhash = new Uint8Array(2 * hash.length);
+                        for (let i = 0; i < hash.length; i++) {
+                            noisyhash[2*i] = hash[i];
+                            noisyhash[2*i + 1] = Math.floor(256 * Math.random());
                         }
 
-                        let encrypted = '';
+                        // Encrypt the result with a public key
+                        let encrypt = new jsencrypt();
+                        encrypt.setPublicKey(publicKey);
+                        encrypted = encrypt.encrypt(String.fromCharCode.apply(null, noisyhash));
+                    }
 
-                        if (!enableObfuscation) {
-                            // Remove salt version, rounds number and actual salt from hash
-                            // Encode the hash in HEX to ensure only alphanumeric characters are generated
-                            encrypted = hash.replace(salt, '')
-                                 .split("")
-                                 .map(c => c.charCodeAt(0).toString(16).padStart(2, "0"))
-                                 .join("");
-                        } else {
-                            /*
-                             Turn the base64 encoded hash (remove salt version, rounds number and actual salt)
-                             into a Typed Array that we can work with byte-by-byte.
-                            */
-                            hash = Uint8Array.from(window.atob(hash.slice(-31)), (c) => c.charCodeAt(0));
+                    hashes[item.index] = {"value" : encrypted};
 
-                            // Interlace the hash with random noise bytes
-                            let noisyhash = new Uint8Array(2 * hash.length);
-                            for (let i = 0; i < hash.length; i++) {
-                                noisyhash[2*i] = hash[i];
-                                noisyhash[2*i + 1] = Math.floor(256 * Math.random());
-                            }
+                    // When we finished data processing of obtaining guids
+                    if (Object.keys(hashes).length == validatedData.length) {
+                        setBhashes(hashes);
 
-                            // Encrypt the result with a public key
-                            let encrypt = new jsencrypt();
-                            encrypt.setPublicKey(publicKey);
-                            encrypted = encrypt.encrypt(String.fromCharCode.apply(null, noisyhash));
+                        // If the storageService key is present, upon completing the generation of guids on the frontend,
+                        // send to the service the projectId used along with the guids, the sanitized hc numbers and DoBs
+                        if (storageService) {
+                            let data = Object.keys(hashes).map( index => { return {
+                                  hc: validatedData[index].info[HC],
+                                  dob: validatedData[index].info[DOB],
+                                  guid: hashes[index].value
+                                } }
+                            );
+
+                            fetch(storageService, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                  projectId: projectId,
+                                  data: data
+                                })
+                            })
+                            .then((response) => response.ok ? response.json() : Promise.reject(response))
+                            .then((json) => {
+                                console.log(json);
+                                setTimestampsData(json);
+                            })
+                            .catch((error) => {
+                                console.log(error);
+                            });
                         }
-
-                        hashes[item.index] = {"value" : encrypted};
-                        (Object.keys(hashes).length == validatedData.length) && setBhashes(hashes);
-                    })
-                }
+                    }
+                })
             })
         }
 
@@ -606,6 +645,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                                     </Grid>
                                   </Grid>
                                 </StyledTableCell>
+                                { timestampsData && <StyledTableCell>Generated</StyledTableCell> }
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -614,7 +654,8 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                                       <StyledTableCell>{item.info[HC]}</StyledTableCell>
                                       <StyledTableCell>{item.info[PROVINCE]}</StyledTableCell>
                                       <StyledTableCell>{item.info[DOB]}</StyledTableCell>
-                                      <StyledTableCell style={{color: bhashes[item.index].isError ? 'red' : 'black'}}>{bhashes[item.index].value}</StyledTableCell>
+                                      <StyledTableCell style={{color: bhashes[item.index].isError ? 'red' : 'black', wordBreak: "break-all"}}>{bhashes[item.index].value}</StyledTableCell>
+                                      { timestampsData && <StyledTableCell>{timestampsData[bhashes[item.index].value]}</StyledTableCell> }
                                     </TableRow>
                                   )
                                 }
