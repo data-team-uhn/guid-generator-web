@@ -456,7 +456,7 @@ require(["bcrypt", "jsencrypt"], function(bcrypt, jsencrypt) {
                 }
 
                 // If the input is found valid, concatenate the post-processed health card number and date of birth and generate the GUID
-                postProcessed.push({"index": index, "info" : info, "value": info[HC] + info[PROVINCE]});
+                postProcessed.push({"index": index, "info" : info, "value": info[HC] + info[PROVINCE] + info[DOB].split(DATE_FORMAT_SPECS[dateFormat].separator).join('')});
             }
 
             setValidatedData(postProcessed);
